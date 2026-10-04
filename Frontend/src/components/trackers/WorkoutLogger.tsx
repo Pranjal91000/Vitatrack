@@ -186,6 +186,8 @@ function LogTodayForm({ onSuccess }: { onSuccess: () => void }) {
         durationSeconds: s.durationSeconds,
         distanceKm: s.distanceKm,
         elevationGainM: s.elevationGainM,
+        setType: 0,
+        isCompleted: true,
       })),
     }));
 
