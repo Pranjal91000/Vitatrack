@@ -166,3 +166,26 @@ export const useSaveAsRoutine = () => {
     onError: (e) => toast.error(errorMessage(e)),
   });
 };
+
+
+// Legacy tracker compatibility wrappers
+export const useExercises = () => useExerciseLibrary();
+export const useCreateWorkout = () => {
+  const save = useSaveWorkout();
+  return { ...save, mutate: (body: CreateWorkoutRequest, options?: Parameters<typeof save.mutate>[1]) => save.mutate({ body }, options) };
+};
+export const useAppendExercises = () => {
+  const save = useSaveWorkout();
+  return { ...save, mutate: ({ id, data }: { id: number; data: { exercises: WorkoutExerciseRequest[] } }, options?: Parameters<typeof save.mutate>[1]) => {
+    const existing = { date: new Date().toISOString().slice(0, 10), name: 'Daily Session', exercises: data.exercises } as CreateWorkoutRequest;
+    save.mutate({ id, body: existing }, options);
+  }};
+};
+export const useWorkouts = (date: string) => useQuery({
+  queryKey: ['workouts', 'daily', date],
+  queryFn: async () => {
+    const { data } = await api.get<{ workouts: WorkoutSummary[] }>('workouts/history', { params: { date, page: 1, limit: 20 } });
+    return data;
+  },
+});
+export const useGetWorkoutHeatmapData = (from: string, to: string) => useHeatmap(from, to);
