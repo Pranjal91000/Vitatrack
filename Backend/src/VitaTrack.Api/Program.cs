@@ -24,15 +24,12 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddServices();
 builder.Services.AddControllers();
 
-// FluentValidation: every AbstractValidator<T> in this assembly runs automatically and
-// returns a 400 ValidationProblemDetails before the controller action executes.
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// JWT
 builder.Services
     .AddAuthentication(options =>
     {
@@ -58,7 +55,6 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-// CORS
 builder.Services.AddCors(options =>
 {
     var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
@@ -77,7 +73,6 @@ builder.Services.AddOptions<JwtOption>()
 
 var app = builder.Build();
 
-// Apply pending migrations and make sure the built-in exercise library / foods / meal slots exist.
 if (builder.Configuration.GetValue("Database:MigrateOnStartup", true))
 {
     using var scope = app.Services.CreateScope();
@@ -94,7 +89,6 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseCors("DefinedOrigins");
 if (!app.Environment.IsDevelopment())
 {
-    // In development the Vite dev server proxies plain HTTP; redirecting would break phone testing on the LAN.
     app.UseHttpsRedirection();
 }
 app.UseRouting();
