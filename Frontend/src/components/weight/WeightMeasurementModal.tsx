@@ -22,7 +22,7 @@ import type { WeightMeasurement } from '@/types/api';
 // ─── Validation Schema ─────────────────────────────────────────────────────────
 const schema = z.object({
     weight: z
-        .number({ invalid_type_error: 'Please enter a valid weight' })
+        .number({ message: 'Please enter a valid weight' })
         .min(20, 'Weight must be at least 20 kg')
         .max(500, 'Weight must be less than 500 kg'),
     recordedOn: z.string().min(1, 'Date is required'),
