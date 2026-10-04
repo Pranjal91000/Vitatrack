@@ -2,7 +2,7 @@
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
+import { profileToRequest, useProfile, useUpdateProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -38,15 +38,16 @@ export function Profile() {
         if (profile) {
             form.reset({
                 name: profile.name,
-                age: profile.age,
-                weightKg: profile.weightKg,
-                heightCm: profile.heightCm,
+                age: profile.age ?? undefined,
+                weightKg: profile.weightKg ?? undefined,
+                heightCm: profile.heightCm ?? undefined,
             });
         }
     }, [profile, form]);
 
     function onSubmit(values: ProfileFormValues) {
-        updateProfile.mutate(values);
+        if (!profile) return;
+        updateProfile.mutate(profileToRequest(profile, values));
     }
 
     if (isLoading) return <ProfileSkeleton />;
