@@ -136,7 +136,7 @@ function ExerciseSetTable({ ex }: { ex: WorkoutExerciseDto }) {
 }
 
 export function DailyWorkouts() {
-    const [selectedExercise, setSelectedExercise] = useState<{ id: string; name: string } | null>(null);
+    const [selectedExercise, setSelectedExercise] = useState<{ id: number; name: string } | null>(null);
     const currentDate = useDateStore((state) => state.currentDate);
     const { data, isLoading } = useWorkouts(currentDate);
     const deleteWorkout = useDeleteWorkout();
@@ -167,7 +167,7 @@ export function DailyWorkouts() {
                 {workouts.map((workout) => (
                     <AccordionItem
                         key={workout.id}
-                        value={workout.id}
+                        value={String(workout.id)}
                         className="!border-b-0 rounded-xl border bg-card px-3 shadow-sm sm:px-4"
                     >
                         <div className="flex items-stretch gap-2">
@@ -222,7 +222,7 @@ export function DailyWorkouts() {
             </Accordion>
 
             <ExerciseMonthlyViewDialog
-                exerciseId={selectedExercise ? Number(selectedExercise.id) : null}
+                exerciseId={selectedExercise?.id ?? null}
                 exerciseName={selectedExercise?.name ?? ''}
                 open={!!selectedExercise}
                 onOpenChange={(open) => !open && setSelectedExercise(null)}
