@@ -134,6 +134,14 @@ export type UpdateMealFoodCommand = any;
 export type CreateFoodCommand = CreateFoodRequest;
 export type UpdateFoodCommand = Partial<CreateFoodRequest>;
 export type CreateMealSlotCommand = any;
-export type DashboardDailyDto = DashboardSummary;
+export interface DashboardDailyDto {
+  date: string;
+  meals: { calories: number; proteinG: number };
+  calorieGoal: number;
+  workoutsCompleted: number;
+  wellnessStreak: number;
+  mealsLoggedCount: number;
+  quickStats: { label: string; value: string }[];
+}
 export interface ExerciseDailySummaryDto { date: string; totalDistanceKm: number; averagePaceMinPerKm: number; totalDurationSeconds: number; totalVolume: number; maxWeight: number; totalReps: number; }
 export interface ExerciseMonthlyReportDto { dailySummaries: ExerciseDailySummaryDto[]; }
