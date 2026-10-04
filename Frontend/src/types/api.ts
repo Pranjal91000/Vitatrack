@@ -119,3 +119,21 @@ export interface NutritionReport {
   dailyItems: { date: string; calories: number; proteinG: number; carbsG: number; fatG: number }[];
   avgProteinCaloriePercent: number;
 }
+
+
+// ── Compatibility aliases for legacy tracker components ─────────────────────
+export type WeightMeasurement = WeightEntry;
+export type CreateWeightRequest = SaveWeightRequest;
+export type UpdateWeightRequest = SaveWeightRequest & { id: number };
+export type NutrientSummaryDto = Nutrients;
+export type DailyMealsDto = DailyMeals;
+export type FoodDto = Food;
+export type MealSlotDto = MealSlot;
+export type CreateMealCommand = any;
+export type UpdateMealFoodCommand = any;
+export type CreateFoodCommand = CreateFoodRequest;
+export type UpdateFoodCommand = Partial<CreateFoodRequest>;
+export type CreateMealSlotCommand = any;
+export type DashboardDailyDto = DashboardSummary;
+export interface ExerciseDailySummaryDto { date: string; totalDistanceKm: number; averagePaceMinPerKm: number; totalDurationSeconds: number; totalVolume: number; maxWeight: number; totalReps: number; }
+export interface ExerciseMonthlyReportDto { dailySummaries: ExerciseDailySummaryDto[]; }
