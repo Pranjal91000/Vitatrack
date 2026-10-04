@@ -5,7 +5,7 @@ import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Too
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
-import { Empty, ErrorState, Field, Input, Loading, SectionTitle, Segmented, Stat } from '@/components/ui/primitives';
+import { Empty, ErrorState, Field, Input, Loading, Segmented, Stat } from '@/components/ui/primitives';
 import { useDeleteWeight, useSaveWeight, useWeightHistory } from '@/hooks/useBody';
 import { useProfile } from '@/hooks/useProfile';
 import { useSettings } from '@/store/settingsStore';
