@@ -17,6 +17,12 @@ namespace VitaTrack.Infrastructure.EntityConfiguration
             builder.Property(x => x.Name).IsRequired().HasMaxLength(100);
             builder.Property(x => x.PasswordHash).IsRequired();
             builder.Property(x => x.Role).IsRequired().HasMaxLength(50);
+
+            builder.Property(x => x.Sex).HasMaxLength(10);
+            builder.Property(x => x.ActivityFactor).HasPrecision(4, 3);
+            builder.Property(x => x.WeightGoalKg).HasPrecision(6, 2);
+            builder.Property(x => x.WeightUnit).IsRequired().HasMaxLength(5).HasDefaultValue("kg");
+            builder.Property(x => x.DefaultRestSeconds).HasDefaultValue(90);
         }
     }
 }

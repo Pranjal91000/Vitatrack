@@ -7,6 +7,10 @@ public class WorkoutExercise : BaseEntity<long>
     public long WorkoutId { get; set; }
     public long ExerciseId { get; set; }
     public int Order { get; set; }
+    public string? Notes { get; set; }
+
+    /// <summary>Rest timer (seconds) used between sets of this exercise. Null = user default.</summary>
+    public int? RestSeconds { get; set; }
 
     public Workout Workout { get; set; } = null!;
     public Exercise Exercise { get; set; } = null!;

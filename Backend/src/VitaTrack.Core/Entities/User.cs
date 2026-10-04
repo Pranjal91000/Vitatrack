@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using VitaTrack.Core.Common;
-
 namespace VitaTrack.Core.Entities;
 
 public class User
@@ -17,6 +14,21 @@ public class User
     public decimal? HeightCm { get; set; }
     public decimal? Bmr { get; set; }
     public string Role { get; set; } = "User";
+
+    // Body & goals
+    /// <summary>"male" | "female" — used for the Mifflin-St Jeor BMR equation.</summary>
+    public string? Sex { get; set; }
+    public decimal? ActivityFactor { get; set; }
+    public int? CalorieGoal { get; set; }
+    public int? ProteinGoalG { get; set; }
+    public int? CarbsGoalG { get; set; }
+    public int? FatGoalG { get; set; }
+    public decimal? WeightGoalKg { get; set; }
+
+    // Preferences
+    /// <summary>"kg" | "lb" — display unit only; all weights are stored in kg.</summary>
+    public string WeightUnit { get; set; } = "kg";
+    public int DefaultRestSeconds { get; set; } = 90;
 
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<Meal> Meals { get; set; } = new List<Meal>();

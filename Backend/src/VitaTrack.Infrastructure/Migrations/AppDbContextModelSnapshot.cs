@@ -394,6 +394,16 @@ namespace VitaTrack.Infrastructure.Migrations
                     b.Property<int?>("Reps")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("IsCompleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<short>("SetType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)0);
+
                     b.Property<decimal?>("Rpe")
                         .HasPrecision(4, 2)
                         .HasColumnType("numeric(4,2)");
@@ -472,6 +482,42 @@ namespace VitaTrack.Infrastructure.Migrations
                     b.Property<decimal?>("WeightKg")
                         .HasColumnType("numeric");
 
+                    b.Property<decimal?>("ActivityFactor")
+                        .HasPrecision(4, 3)
+                        .HasColumnType("numeric(4,3)");
+
+                    b.Property<int?>("CalorieGoal")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("CarbsGoalG")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DefaultRestSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(90);
+
+                    b.Property<int?>("FatGoalG")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ProteinGoalG")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Sex")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<decimal?>("WeightGoalKg")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)");
+
+                    b.Property<string>("WeightUnit")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)")
+                        .HasDefaultValue("kg");
+
                     b.HasKey("Id")
                         .HasName("pk_user");
 
@@ -508,6 +554,13 @@ namespace VitaTrack.Infrastructure.Migrations
                     b.Property<decimal>("Weight")
                         .HasPrecision(5, 2)
                         .HasColumnType("numeric(5,2)");
+
+                    b.Property<decimal?>("BodyFatPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
 
                     b.HasKey("Id")
                         .HasName("pk_weight_tracker");
@@ -549,6 +602,12 @@ namespace VitaTrack.Infrastructure.Migrations
                     b.Property<string>("RecurrencePattern")
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -559,6 +618,9 @@ namespace VitaTrack.Infrastructure.Migrations
                         .HasName("pk_workout");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "Date")
+                        .HasDatabaseName("ix_workout_user_id_date");
 
                     b.ToTable("workout", (string)null);
                 });
@@ -581,6 +643,12 @@ namespace VitaTrack.Infrastructure.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("RestSeconds")
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("UpdatedAt")

@@ -3,8 +3,8 @@ using VitaTrack.Core.Enums;
 
 namespace VitaTrack.Api.Workouts.DTOs;
 
-public record CreateExerciseRequest(string Name, short Type, string[] MuscleGroups, MeasurementType MeasurementType);
-public record UpdateExerciseRequest(string Name, short Type, string[] MuscleGroups, MeasurementType MeasurementType);
+public record CreateExerciseRequest(string Name, short Type, string[] MuscleGroups, MeasurementType MeasurementType, string? Equipment = null);
+public record UpdateExerciseRequest(string Name, short Type, string[] MuscleGroups, MeasurementType MeasurementType, string? Equipment = null);
 
 public class CreateExerciseValidator : AbstractValidator<CreateExerciseRequest>
 {
@@ -12,6 +12,8 @@ public class CreateExerciseValidator : AbstractValidator<CreateExerciseRequest>
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.MeasurementType).IsInEnum();
+        RuleFor(x => x.MuscleGroups).NotNull();
+        RuleFor(x => x.Equipment).MaximumLength(50);
     }
 }
 
@@ -21,5 +23,7 @@ public class UpdateExerciseValidator : AbstractValidator<UpdateExerciseRequest>
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
         RuleFor(x => x.MeasurementType).IsInEnum();
+        RuleFor(x => x.MuscleGroups).NotNull();
+        RuleFor(x => x.Equipment).MaximumLength(50);
     }
 }

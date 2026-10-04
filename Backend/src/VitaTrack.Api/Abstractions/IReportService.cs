@@ -7,6 +7,7 @@ namespace VitaTrack.Api.Abstractions
     {
         Task<(NutritionReportDto? Report, string? Error)> GetNutritionReportAsync(string from, string to, CancellationToken cancellationToken = default);
         Task<(WorkoutReportDto? Report, string? Error)> GetWorkoutReportAsync(string from, string to, CancellationToken cancellationToken = default);
+        Task<ProgressReportDto> GetProgressReportAsync(int weeks, CancellationToken cancellationToken = default);
         Task<(ExerciseMonthlyReportDto? Report, string? Error)> GetExerciseMonthlyReportAsync(long exerciseId, string month, CancellationToken cancellationToken = default);
     }
 }

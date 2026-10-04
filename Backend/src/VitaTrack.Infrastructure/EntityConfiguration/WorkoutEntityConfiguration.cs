@@ -11,6 +11,8 @@ namespace VitaTrack.Infrastructure.EntityConfiguration
             builder.ToTable("workout");
             builder.HasKey(x => x.Id).HasName("pk_workout");
 
+            builder.HasIndex(x => new { x.UserId, x.Date }).HasDatabaseName("ix_workout_user_id_date");
+
             builder.HasOne(x => x.User)
                 .WithMany(u => u.Workouts)
                 .HasForeignKey(x => x.UserId)

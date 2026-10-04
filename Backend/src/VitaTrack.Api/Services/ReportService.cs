@@ -2,12 +2,14 @@ using VitaTrack.Api.Abstractions;
 using VitaTrack.Api.Reports.DTOs;
 using VitaTrack.Api.Workouts.DTOs;
 using VitaTrack.Core.Abstraction;
+using VitaTrack.Core.Common;
 
 namespace VitaTrack.Api.Services
 {
-    public class ReportService(IReportRepository reportRepository, IJwtHelperService jwtHelperService) : IReportService
+    public class ReportService(IReportRepository reportRepository, IWorkoutRepository workoutRepository, IJwtHelperService jwtHelperService) : IReportService
     {
         private readonly IReportRepository _reportRepository = reportRepository;
+        private readonly IWorkoutRepository _workoutRepository = workoutRepository;
         private readonly IJwtHelperService _jwtHelperService = jwtHelperService;
 
         public async Task<(NutritionReportDto? Report, string? Error)> GetNutritionReportAsync(string from, string to, CancellationToken cancellationToken = default)
@@ -76,8 +78,8 @@ namespace VitaTrack.Api.Services
                 .GroupBy(we => we.Exercise.Name)
                 .Select(g => new WorkoutReportItem(
                     g.Key,
-                    g.Sum(we => we.Sets.Sum(s => (s.WeightKg ?? 0) * (s.Reps ?? 0))),
-                    g.Sum(we => we.Sets.Count),
+                    g.Sum(we => TrainingMath.Volume(we.Sets)),
+                    g.Sum(we => we.Sets.Count(TrainingMath.IsWorkingSet)),
                     g.SelectMany(we => we.Sets).Where(s => s.Rpe.HasValue).Select(s => s.Rpe!.Value).DefaultIfEmpty(0).Average()
                 ))
                 .OrderByDescending(x => x.TotalVolume)
@@ -87,6 +89,62 @@ namespace VitaTrack.Api.Services
             var totalDistanceKm = allExerciseRows.Sum(we => we.Sets.Sum(s => s.DistanceKm ?? 0));
 
             return (new WorkoutReportDto(fromDate, toDate, grouped, workouts.Count, totalDurationMinutes, totalDistanceKm), null);
+        }
+
+        public async Task<ProgressReportDto> GetProgressReportAsync(int weeks, CancellationToken cancellationToken = default)
+        {
+            weeks = Math.Clamp(weeks, 1, 52);
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var thisWeekStart = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
+            var from = thisWeekStart.AddDays(-7 * (weeks - 1));
+            var to = thisWeekStart.AddDays(6);
+
+            var workouts = await _workoutRepository.GetWorkoutsInRangeAsync(_jwtHelperService.GetUserId(), from, to, cancellationToken);
+
+            var weekly = Enumerable.Range(0, weeks).Select(i =>
+            {
+                var start = from.AddDays(7 * i);
+                var end = start.AddDays(6);
+                var inWeek = workouts.Where(w => w.Date >= start && w.Date <= end).ToList();
+                var sets = inWeek.SelectMany(w => w.Exercises).SelectMany(e => e.Sets).ToList();
+                return new WeeklyTrainingDto(
+                    start,
+                    inWeek.Count,
+                    TrainingMath.Volume(sets),
+                    sets.Count(TrainingMath.IsWorkingSet),
+                    inWeek.Sum(w => w.DurationMinutes ?? 0));
+            }).ToList();
+
+            // Muscle split over the last 4 weeks of the range (or the whole range if shorter).
+            var muscleFrom = to.AddDays(-27) > from ? to.AddDays(-27) : from;
+            var muscleTotals = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+            foreach (var we in workouts.Where(w => w.Date >= muscleFrom).SelectMany(w => w.Exercises))
+            {
+                var groups = we.Exercise?.MuscleGroups ?? Array.Empty<string>();
+                if (groups.Length == 0) continue;
+                var count = we.Sets.Count(TrainingMath.IsWorkingSet);
+                if (count == 0) continue;
+
+                for (var i = 0; i < groups.Length; i++)
+                {
+                    var weight = i == 0 ? 1m : 0.5m;
+                    muscleTotals[groups[i]] = muscleTotals.GetValueOrDefault(groups[i]) + count * weight;
+                }
+            }
+
+            var muscleList = muscleTotals
+                .OrderByDescending(kv => kv.Value)
+                .Select(kv => new MuscleSetsDto(kv.Key, kv.Value))
+                .ToList();
+
+            return new ProgressReportDto(
+                from,
+                to,
+                weekly,
+                muscleList,
+                workouts.Count,
+                weekly.Sum(w => w.Volume),
+                weekly.Sum(w => w.DurationMinutes));
         }
 
         public async Task<(ExerciseMonthlyReportDto? Report, string? Error)> GetExerciseMonthlyReportAsync(long exerciseId, string month, CancellationToken cancellationToken = default)

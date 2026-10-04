@@ -6,7 +6,9 @@ namespace VitaTrack.Api.Abstractions
 {
     public interface IExerciseService
     {
-        Task<ApiResponse<List<ExerciseDto>>> GetExercisesAsync(string search, int page, int limit, CancellationToken cancellationToken = default);
+        Task<ApiResponse<List<ExerciseDto>>> GetExercisesAsync(string? search, string? muscle, string? equipment, int page, int limit, CancellationToken cancellationToken = default);
+        Task<ExerciseDetailDto?> GetExerciseDetailAsync(long id, int sessions, CancellationToken cancellationToken = default);
+        Task<List<LastPerformanceDto>> GetLastPerformancesAsync(List<long> exerciseIds, CancellationToken cancellationToken = default);
         Task<ExerciseDto> CreateExerciseAsync(CreateExerciseRequest request, CancellationToken cancellationToken = default);
         Task<(ExerciseDto? Exercise, string? Error)> UpdateExerciseAsync(long id, UpdateExerciseRequest request, CancellationToken cancellationToken = default);
         Task<(bool Success, string? Error)> DeleteExerciseAsync(long id, string contentRootPath, CancellationToken cancellationToken = default);

@@ -1,82 +1,40 @@
+import type { Config } from 'tailwindcss';
+import tailwindcssAnimate from 'tailwindcss-animate';
 
-import type { Config } from "tailwindcss";
-import tailwindcssAnimate from "tailwindcss-animate";
+const v = (name: string) => `hsl(var(--${name}) / <alpha-value>)`;
 
-const config = {
-    darkMode: ["class"],
-    content: [
-        './pages/**/*.{ts,tsx}',
-        './components/**/*.{ts,tsx}',
-        './app/**/*.{ts,tsx}',
-        './src/**/*.{ts,tsx}',
-    ],
-    prefix: "",
-    theme: {
-        container: {
-            center: true,
-            padding: "2rem",
-            screens: {
-                "2xl": "1400px",
-            },
-        },
-        extend: {
-            colors: {
-                border: "hsl(var(--border))",
-                input: "hsl(var(--input))",
-                ring: "hsl(var(--ring))",
-                background: "hsl(var(--background))",
-                foreground: "hsl(var(--foreground))",
-                primary: {
-                    DEFAULT: "hsl(var(--primary))",
-                    foreground: "hsl(var(--primary-foreground))",
-                },
-                secondary: {
-                    DEFAULT: "hsl(var(--secondary))",
-                    foreground: "hsl(var(--secondary-foreground))",
-                },
-                destructive: {
-                    DEFAULT: "hsl(var(--destructive))",
-                    foreground: "hsl(var(--destructive-foreground))",
-                },
-                muted: {
-                    DEFAULT: "hsl(var(--muted))",
-                    foreground: "hsl(var(--muted-foreground))",
-                },
-                accent: {
-                    DEFAULT: "hsl(var(--accent))",
-                    foreground: "hsl(var(--accent-foreground))",
-                },
-                popover: {
-                    DEFAULT: "hsl(var(--popover))",
-                    foreground: "hsl(var(--popover-foreground))",
-                },
-                card: {
-                    DEFAULT: "hsl(var(--card))",
-                    foreground: "hsl(var(--card-foreground))",
-                },
-            },
-            borderRadius: {
-                lg: "var(--radius)",
-                md: "calc(var(--radius) - 2px)",
-                sm: "calc(var(--radius) - 4px)",
-            },
-            keyframes: {
-                "accordion-down": {
-                    from: { height: "0" },
-                    to: { height: "var(--radix-accordion-content-height)" },
-                },
-                "accordion-up": {
-                    from: { height: "var(--radix-accordion-content-height)" },
-                    to: { height: "0" },
-                },
-            },
-            animation: {
-                "accordion-down": "accordion-down 0.2s ease-out",
-                "accordion-up": "accordion-up 0.2s ease-out",
-            },
-        },
+export default {
+  darkMode: ['class'],
+  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        background: v('bg'),
+        surface: v('surface'),
+        raised: v('raised'),
+        line: v('line'),
+        foreground: v('ink'),
+        muted: v('muted'),
+        primary: { DEFAULT: v('blue'), foreground: v('on-blue') },
+        destructive: v('red'),
+        success: v('green'),
+        warning: v('yellow'),
+        // Competition plate colours, used as data colours
+        plate: { red: v('red'), blue: v('blue'), yellow: v('yellow'), green: v('green') },
+        protein: v('red'),
+        carbs: v('yellow'),
+        fat: v('green'),
+      },
+      fontFamily: {
+        sans: ['Barlow', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        display: ['"Barlow Condensed"', 'Barlow', 'system-ui', 'sans-serif'],
+      },
+      borderRadius: { xl: '14px', '2xl': '20px' },
+      keyframes: {
+        'pop-in': { from: { transform: 'scale(.96)', opacity: '0' }, to: { transform: 'scale(1)', opacity: '1' } },
+      },
+      animation: { 'pop-in': 'pop-in .18s ease-out' },
     },
-    plugins: [tailwindcssAnimate],
-} satisfies Config
-
-export default config
+  },
+  plugins: [tailwindcssAnimate],
+} satisfies Config;

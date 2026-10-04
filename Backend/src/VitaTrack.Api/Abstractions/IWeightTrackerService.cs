@@ -4,10 +4,10 @@ namespace VitaTrack.Api.Abstractions
 {
     public interface IWeightTrackerService
     {
-        Task<bool> SaveWeightAsync(WeightTrackerSaveInputModel input);
-        Task<bool> UpdateWeightAsync(WeightTrackerUpdateInputModel input);
-        Task<bool> DeleteWeightTrackedAsync(long id);
-        Task<WeightTrackerViewModel> GetWeightTracked(long? id);
-        Task<List<WeightTrackerViewModel>> GetWeightTrackedHistory(DateOnly? FromDate, DateOnly ToDate);
+        Task<WeightTrackerViewModel> SaveWeightAsync(WeightTrackerSaveInputModel input, CancellationToken cancellationToken = default);
+        Task<WeightTrackerViewModel?> UpdateWeightAsync(WeightTrackerUpdateInputModel input, CancellationToken cancellationToken = default);
+        Task<bool> DeleteWeightTrackedAsync(long id, CancellationToken cancellationToken = default);
+        Task<WeightTrackerViewModel?> GetWeightTracked(long? id, CancellationToken cancellationToken = default);
+        Task<List<WeightTrackerViewModel>> GetWeightTrackedHistory(DateOnly? fromDate, DateOnly? toDate, CancellationToken cancellationToken = default);
     }
 }

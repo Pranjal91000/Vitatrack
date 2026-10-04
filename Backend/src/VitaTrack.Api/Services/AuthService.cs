@@ -50,7 +50,8 @@ namespace VitaTrack.Api.Services
 
         public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
         {
-            var existingUser = await _userRepository.GetByEmailAsync(request.Email, cancellationToken);
+            var email = request.Email.Trim().ToLowerInvariant();
+            var existingUser = await _userRepository.GetByEmailAsync(email, cancellationToken);
             if (existingUser != null)
             {
                 throw new Exception("User with this email already exists.");
@@ -58,8 +59,8 @@ namespace VitaTrack.Api.Services
 
             var user = new User
             {
-                Email = request.Email,
-                Name = request.Name,
+                Email = email,
+                Name = request.Name.Trim(),
                 Role = "User"
             };
 
@@ -70,7 +71,7 @@ namespace VitaTrack.Api.Services
             user.RefreshTokens.Add(new RefreshToken
             {
                 Token = refreshToken,
-                Expires = DateTime.UtcNow.AddDays(7),
+                Expires = DateTime.UtcNow.AddDays(30),
                 Created = DateTime.UtcNow
             });
             await _userRepository.CreateUserAsync(user, cancellationToken);
@@ -83,7 +84,7 @@ namespace VitaTrack.Api.Services
 
         public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
         {
-            var user = await _userRepository.GetByEmailAsync(request.Email, cancellationToken);
+            var user = await _userRepository.GetByEmailAsync(request.Email.Trim(), cancellationToken);
             if (user == null)
             {
                 throw new Exception("Invalid email or password.");
@@ -101,7 +102,7 @@ namespace VitaTrack.Api.Services
             user.RefreshTokens.Add(new RefreshToken
             {
                 Token = refreshToken,
-                Expires = DateTime.UtcNow.AddDays(7),
+                Expires = DateTime.UtcNow.AddDays(30),
                 Created = DateTime.UtcNow
             });
 
@@ -131,7 +132,7 @@ namespace VitaTrack.Api.Services
             user.RefreshTokens.Add(new RefreshToken
             {
                 Token = newRefreshToken,
-                Expires = DateTime.UtcNow.AddDays(7),
+                Expires = DateTime.UtcNow.AddDays(30),
                 Created = DateTime.UtcNow
             });
 

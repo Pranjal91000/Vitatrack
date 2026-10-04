@@ -1,68 +1,52 @@
 using Microsoft.EntityFrameworkCore;
 using VitaTrack.Core.Abstraction;
 using VitaTrack.Core.Entities;
-using VitaTrack.Core.Models;
 using VitaTrack.Infrastructure.Data;
 
 namespace VitaTrack.Infrastructure.Repositories
 {
+    /// <summary>All queries are scoped to the current user by the global query filter.</summary>
     public class WeightTrackerRepository(AppDbContext appDbContext) : IWeightTrackerRepository
     {
-        private readonly AppDbContext _appDbContext = appDbContext;
+        private readonly AppDbContext _db = appDbContext;
 
-        public async Task<bool> SaveWeightAsync(WeightTracker data)
+        public Task<WeightTracker?> GetByIdAsync(long id, CancellationToken cancellationToken = default) =>
+            _db.WeightTrackers.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        public Task<WeightTracker?> GetByDateAsync(DateOnly date, CancellationToken cancellationToken = default) =>
+            _db.WeightTrackers.FirstOrDefaultAsync(x => x.DateRecordedOn == date, cancellationToken);
+
+        public Task<WeightTracker?> GetLatestAsync(CancellationToken cancellationToken = default) =>
+            _db.WeightTrackers.AsNoTracking()
+                .OrderByDescending(x => x.DateRecordedOn).ThenByDescending(x => x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+        public Task<WeightTracker?> GetLatestOnOrBeforeAsync(DateOnly date, CancellationToken cancellationToken = default) =>
+            _db.WeightTrackers.AsNoTracking()
+                .Where(x => x.DateRecordedOn <= date)
+                .OrderByDescending(x => x.DateRecordedOn).ThenByDescending(x => x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+        public Task<List<WeightTracker>> GetHistoryAsync(DateOnly? from, DateOnly? to, CancellationToken cancellationToken = default)
         {
-            await _appDbContext.WeightTrackers.AddAsync(data);
-            return await _appDbContext.SaveChangesAsync() > 0;
+            var query = _db.WeightTrackers.AsNoTracking().AsQueryable();
+            if (from.HasValue) query = query.Where(x => x.DateRecordedOn >= from.Value);
+            if (to.HasValue) query = query.Where(x => x.DateRecordedOn <= to.Value);
+            return query.OrderBy(x => x.DateRecordedOn).ToListAsync(cancellationToken);
         }
 
-        public async Task<bool> UpdateWeightAsync(WeightTracker input)
+        public async Task AddAsync(WeightTracker entry, CancellationToken cancellationToken = default)
         {
-            var data = await _appDbContext.WeightTrackers.Where(x => x.Id == input.Id).FirstOrDefaultAsync();
-            if (data == null) return false;
-
-            data.Weight = input.Weight;
-            data.DateRecordedOn = input.DateRecordedOn;
-
-            return await _appDbContext.SaveChangesAsync() > 0;
+            await _db.WeightTrackers.AddAsync(entry, cancellationToken);
+            await _db.SaveChangesAsync(cancellationToken);
         }
 
-        public async Task<bool> DeleteWeightAsync(long id)
+        public async Task DeleteAsync(WeightTracker entry, CancellationToken cancellationToken = default)
         {
-            var data = await _appDbContext.WeightTrackers.FirstOrDefaultAsync(x => x.Id == id);
-            if (data == null) return false;
-
-            _appDbContext.WeightTrackers.Remove(data);
-            return await _appDbContext.SaveChangesAsync() > 0;
+            _db.WeightTrackers.Remove(entry);
+            await _db.SaveChangesAsync(cancellationToken);
         }
 
-        public async Task<GetWeightByDate> GetWeightById(long? id)
-        {
-            var data = await _appDbContext.WeightTrackers
-                .Where(x => id == null || x.Id == id)
-                .OrderByDescending(x => x.DateRecordedOn)
-                .FirstOrDefaultAsync();
-
-            if (data == null) return null!;
-
-            return new GetWeightByDate
-            {
-                Id = data.Id,
-                RecordedOn = data.DateRecordedOn,
-                Weight = data.Weight
-            };
-        }
-
-        public async Task<List<GetWeightByDate>> GetWeightHistory()
-        {
-            var data = await _appDbContext.WeightTrackers.Select(x => new GetWeightByDate
-            {
-                Id = x.Id,
-                RecordedOn = x.DateRecordedOn,
-                Weight = x.Weight
-            }).ToListAsync();
-
-            return data;
-        }
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default) => _db.SaveChangesAsync(cancellationToken);
     }
 }

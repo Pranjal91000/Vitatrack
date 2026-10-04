@@ -1,289 +1,121 @@
+/** Mirrors the VitaTrack API DTOs. All weights are kilograms; dates are yyyy-MM-dd. */
 
-export interface RegisterRequest {
-  email: string;      // valid email format, unique
-  password: string;   // min 8 chars
-  name: string;       // Public display name
+// ── Auth & profile ───────────────────────────────────────────────────────────
+export interface AuthResponse { token: string; refreshToken: string; userId: number; email: string; name: string }
+export interface LoginRequest { email: string; password: string }
+export interface RegisterRequest { email: string; password: string; name: string }
+
+export interface NutritionGoals { calories: number; proteinG: number; carbsG: number; fatG: number; isCustom: boolean }
+
+export type Sex = 'male' | 'female';
+export type WeightUnit = 'kg' | 'lb';
+
+export interface UserProfile {
+  id: number; email: string; name: string;
+  age: number | null; weightKg: number | null; heightCm: number | null; bmr: number | null;
+  sex: Sex | null; activityFactor: number | null;
+  calorieGoal: number | null; proteinGoalG: number | null; carbsGoalG: number | null; fatGoalG: number | null;
+  weightGoalKg: number | null; weightUnit: WeightUnit; defaultRestSeconds: number;
+  tdee: number | null; effectiveGoals: NutritionGoals;
 }
 
-export interface AuthResponse {
-  token: string;        // Short-lived JWT Access Token (expires in 60m)
-  refreshToken: string; // Long-lived refresh token (stored in HTTP-only cookie or secure storage)
-  userId: string;
-  email: string;
-  name: string;
+export interface UpdateProfileRequest {
+  name?: string; age: number | null; weightKg: number | null; heightCm: number | null;
+  sex: Sex | null; activityFactor: number | null;
+  calorieGoal: number | null; proteinGoalG: number | null; carbsGoalG: number | null; fatGoalG: number | null;
+  weightGoalKg: number | null; weightUnit: WeightUnit; defaultRestSeconds: number;
 }
 
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
+// ── Exercises & workouts ─────────────────────────────────────────────────────
+/** 0 WeightReps · 1 TimeDistance · 2 Other · 3 BodyweightReps · 4 TimedHold · 5 DistanceOnly */
+export type MeasurementType = 0 | 1 | 2 | 3 | 4 | 5;
+/** 0 Normal · 1 Warm-up · 2 Drop · 3 Failure */
+export type SetType = 0 | 1 | 2 | 3;
 
-export interface RefreshRequest {
-  refreshToken: string;
-  token?: string; // Optional: The expired access token
-}
-
-export interface RefreshResponse {
-  token: string;        // New Access Token
-  refreshToken: string; // New Refresh Token (Rotation)
-}
-
-export interface UserProfileDto {
-  id: string; // UUID
-  email: string;
-  name: string;
-  age?: number;
-  weightKg?: number;
-  heightCm?: number;
-  bmr?: number; // Calculated Basal Metabolic Rate
-}
-
-export interface UpdateProfileCommand {
-  name?: string;
-  age?: number;
-  weightKg?: number;
-  heightCm?: number;
-}
-
-export interface FoodDto {
-  id: string;
-  name: string;
-  servingSize: number;
-  unit: string; // "g", "ml", "oz", "slice"
-  calories: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-}
-
-export interface DailyMealsDto {
-  meals: MealDto[];
-}
-
-export interface MealSlotDto {
-  id: string;
-  userId: string | null;
-  name: string;
-  sortOrder: number;
-}
-
-export interface MealDto {
-  id: string;
-  mealSlotId: string;
-  mealSlotName: string;
-  date: string;
-  notes?: string | null;
-  foods: MealFoodDto[];
-  grandTotal: NutrientSummaryDto;
-}
-
-export interface MealFoodDto {
-  id: string; // Mapping ID (MealFood ID)
-  food: FoodDto;
-  quantity: number; // Multiplier of serving size (e.g. 1.5)
-  totals: NutrientSummaryDto; // Calculated: Food * Qty
-}
-
-export interface MealNutrientSummaryDto {
-  calories: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-}
-
-export interface NutrientSummaryDto {
-  calories: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-}
-
-export interface CreateMealCommand {
-  date: string;
-  mealSlotId: number;
-  notes?: string | null;
-  foods: Array<{
-    foodId: number;
-    quantity: number;
-  }>;
-}
-
-export interface CreateMealSlotCommand {
-  name: string;
-}
-
-export interface UpdateMealFoodCommand {
-  quantity: number; // New quantity. 0 = remove? (Better use DELETE)
-}
-
-export interface ExerciseDto {
-  id: string;
-  name: string;
-  type: number;
-  muscleGroups: string[];
-  measurementType: number;
-  isDefault?: boolean;
-  demoMediaUrl?: string | null;
-}
-
-export interface CreateExerciseCommand {
-  name: string;
-  type: number;
-  muscleGroups: string[];
-  measurementType: number;
-}
-
-export interface UpdateExerciseCommand {
-  name: string;
-  type: number;
-  muscleGroups: string[];
-  measurementType: number;
-}
-
-export interface CreateFoodCommand {
-  name: string;
-  servingSize: number;
-  unit: string;
-  calories: number;
-  proteinG: number;
-  carbsG: number;
-  fatG: number;
-}
-
-export interface UpdateFoodCommand {
-  name?: string;
-  servingSize?: number;
-  unit?: string;
-  calories?: number;
-  proteinG?: number;
-  carbsG?: number;
-  fatG?: number;
-}
-
-export interface DailyWorkoutsDto {
-  workouts: WorkoutDto[];
-}
-
-/** Backend: GET /workouts/heatmap — matches CalendarHeatmap getData shape */
-export interface WorkoutHeatmapDayDto {
-  date: string;
-  count: number;
-}
-
-export interface WorkoutDto {
-  id: string;
-  name: string;
-  durationMinutes?: number;
-  volume: number;
-  exercises: WorkoutExerciseDto[];
-  recurrencePattern?: string | null;
-  isTemplate?: boolean;
-}
-
-export interface WorkoutExerciseDto {
-  exerciseId: string;
-  exerciseName: string;
-  order: number;
-  sets: SetDto[];
+export interface Exercise {
+  id: number; name: string; type: number; muscleGroups: string[]; equipment: string | null;
+  measurementType: MeasurementType; isDefault: boolean; isCustom: boolean; demoMediaUrl: string | null;
 }
 
 export interface SetDto {
-  setNumber: number;
-  reps?: number;
-  weightKg?: number;
-  rpe?: number;
-  oneRepMax?: number;
-  durationSeconds?: number;
-  distanceKm?: number;
-  elevationGainM?: number;
-  paceMinPerKm?: number;
-  pace?: number;
+  id: number; setNumber: number; reps: number | null; weightKg: number | null; durationSeconds: number | null;
+  rpe: number | null; oneRepMax: number | null; distanceKm: number | null; elevationGainM: number | null;
+  paceMinPerKm: number | null; pace: number | null; setType: SetType; isCompleted: boolean;
 }
 
-export interface CreateWorkoutCommand {
-  date: string;
-  name: string;
-  durationMinutes?: number;
-  notes?: string;
-  recurrencePattern?: string | null;
-  isTemplate?: boolean;
-  exercises: Array<{
-    exerciseId: number;
-    order: number;
-    sets: Array<{
-      setNumber: number;
-      reps?: number;
-      weightKg?: number;
-      durationSeconds?: number;
-      distanceKm?: number;
-      elevationGainM?: number;
-      paceMinPerKm?: number;
-      rpe?: number;
-    }>;
-  }>;
+export interface WorkoutExerciseDto {
+  id: number; exerciseId: number; exerciseName: string; muscleGroups: string[]; equipment: string | null;
+  measurementType: MeasurementType; order: number; notes: string | null; restSeconds: number | null; sets: SetDto[];
 }
 
-export interface AppendExercisesCommand {
-  exercises: Array<{
-    exerciseId: number;
-    sets: Array<{
-      setNumber: number;
-      reps?: number;
-      weightKg?: number;
-      durationSeconds?: number;
-      distanceKm?: number;
-      elevationGainM?: number;
-      paceMinPerKm?: number;
-      rpe?: number;
-    }>;
-  }>;
+export interface PersonalRecord { exerciseId: number; exerciseName: string; kind: 'weight' | 'oneRepMax' | 'volume' | 'reps'; value: number; previous: number | null }
+
+export interface WorkoutDto {
+  id: number; name: string | null; date: string; durationMinutes: number | null; notes: string | null;
+  startedAt: string | null; endedAt: string | null; exercises: WorkoutExerciseDto[];
+  volume: number; totalSets: number; totalReps: number; isTemplate: boolean; records: PersonalRecord[];
 }
 
-export interface ExerciseDailySummaryDto {
-  date: string;
-  totalVolume: number;
-  maxWeight: number;
-  totalDistanceKm: number;
-  averagePaceMinPerKm: number;
-  totalDurationSeconds: number;
-  totalReps: number;
+export interface WorkoutSummaryExercise { exerciseId: number; exerciseName: string; setCount: number; bestWeightKg: number | null; bestReps: number | null; measurementType: MeasurementType }
+export interface WorkoutSummary {
+  id: number; name: string | null; date: string; startedAt: string | null; durationMinutes: number | null;
+  volume: number; totalSets: number; exercises: WorkoutSummaryExercise[];
 }
 
-export interface ExerciseMonthlyReportDto {
-  exerciseId: number;
-  exerciseName: string;
-  dailySummaries: ExerciseDailySummaryDto[];
+export interface SetRequest {
+  setNumber: number; reps?: number | null; weightKg?: number | null; durationSeconds?: number | null;
+  rpe?: number | null; distanceKm?: number | null; setType: SetType; isCompleted: boolean;
+}
+export interface WorkoutExerciseRequest { exerciseId: number; sets: SetRequest[]; notes?: string | null; restSeconds?: number | null }
+export interface CreateWorkoutRequest {
+  date: string; name: string; durationMinutes?: number | null; notes?: string | null;
+  startedAt?: string | null; endedAt?: string | null; exercises: WorkoutExerciseRequest[];
+}
+export interface RoutineRequest { name: string; notes?: string | null; exercises: WorkoutExerciseRequest[] }
+
+export interface ExerciseSession { workoutId: number; workoutName: string | null; date: string; sets: SetDto[]; volume: number; bestOneRepMax: number | null; maxWeightKg: number | null }
+export interface ExerciseDetail {
+  exercise: Exercise; sessionCount: number; bestOneRepMax: number | null; maxWeightKg: number | null;
+  bestSetVolume: number | null; maxReps: number | null; sessions: ExerciseSession[];
+}
+export interface LastPerformance { exerciseId: number; date: string; sets: SetDto[] }
+
+export interface CreateExerciseRequest { name: string; type: number; muscleGroups: string[]; measurementType: MeasurementType; equipment?: string | null }
+
+export interface Paged<T> { data: T; meta: { total: number; page: number; totalPages: number; hasNext: boolean } | null }
+export interface HeatmapDay { date: string; count: number }
+
+// ── Nutrition ────────────────────────────────────────────────────────────────
+export interface Nutrients { calories: number; proteinG: number; carbsG: number; fatG: number }
+export interface Food { id: number; name: string; servingSize: number; unit: string; calories: number; proteinG: number; carbsG: number; fatG: number; isCustom: boolean }
+export interface MealFood { id: number; food: Food; quantity: number; totals: Nutrients }
+export interface Meal { id: number; mealSlotId: number; mealSlotName: string; date: string; notes: string | null; foods: MealFood[]; grandTotal: Nutrients }
+export interface MealSlot { id: number; userId: number | null; name: string; sortOrder: number }
+export interface DailyMeals { date: string; meals: Meal[]; total: Nutrients; goals: NutritionGoals }
+export interface MealEntry { mealId: number; mealSlotId: number; date: string; entry: MealFood }
+export interface CreateFoodRequest { name: string; servingSize: number; unit: string; calories: number; proteinG: number; carbsG: number; fatG: number }
+
+// ── Body ─────────────────────────────────────────────────────────────────────
+export interface WeightEntry { id: number; recordedOn: string; weight: number; bodyFatPercent: number | null; notes: string | null }
+export interface SaveWeightRequest { recordedOn: string; weight: number; bodyFatPercent?: number | null; notes?: string | null }
+
+// ── Dashboard & reports ──────────────────────────────────────────────────────
+export interface DashboardSummary {
+  date: string; consumed: Nutrients; goals: NutritionGoals; todayWorkouts: WorkoutSummary[]; lastWorkout: WorkoutSummary | null;
+  workoutsThisWeek: number; volumeThisWeek: number; activeDayStreak: number;
+  weight: { latestKg: number; recordedOn: string; changeKg30d: number | null; goalKg: number | null } | null;
+  week: { date: string; workouts: number; calories: number }[];
 }
 
-export interface DashboardDailyDto {
-  date: string;
-  meals: NutrientSummaryDto;
-  workoutsCompleted: number;
-  wellnessStreak: number;
-  calorieGoal: number;
-  mealsLoggedCount: number;
-  quickStats: QuickStat[];
+export interface ProgressReport {
+  from: string; to: string;
+  weeks: { weekStart: string; workouts: number; volume: number; sets: number; durationMinutes: number }[];
+  muscles: { muscle: string; sets: number }[];
+  totalWorkouts: number; totalVolume: number; totalDurationMinutes: number;
 }
 
-export interface QuickStat {
-  label: string; // "Total Calories", "Workouts"
-  value: string; // "2400", "1"
-}
-
-// Weight Tracker
-export interface WeightMeasurement {
-  id: number;
-  recordedOn: string; // DateOnly: "yyyy-MM-dd"
-  weight: number;
-}
-
-export interface CreateWeightRequest {
-  recordedOn: string; // DateOnly: "yyyy-MM-dd"
-  weight: number;
-}
-
-export interface UpdateWeightRequest {
-  id: number;
-  recordedOn: string; // DateOnly: "yyyy-MM-dd"
-  weight: number;
+export interface NutritionReport {
+  from: string; to: string;
+  dailyItems: { date: string; calories: number; proteinG: number; carbsG: number; fatG: number }[];
+  avgProteinCaloriePercent: number;
 }

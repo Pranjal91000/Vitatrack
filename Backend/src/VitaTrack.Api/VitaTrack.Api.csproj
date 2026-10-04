@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Models\Auth\DTOs\" />
+    
   </ItemGroup>
 
   <ItemGroup>

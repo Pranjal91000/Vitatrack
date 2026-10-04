@@ -3,8 +3,13 @@ using VitaTrack.Core.Common;
 
 namespace VitaTrack.Core.Entities;
 
+/// <summary>
+/// Food database entry. UserId == null means a built-in food visible to everyone.
+/// Nutrition values are per one serving (ServingSize + Unit).
+/// </summary>
 public class Food : BaseEntity<long>
 {
+    public new long? UserId { get; set; }
     public string Name { get; set; } = null!;
     public decimal ServingSize { get; set; }
     public string Unit { get; set; } = "g";
@@ -16,4 +21,6 @@ public class Food : BaseEntity<long>
     public decimal SugarG { get; set; }
     public decimal SodiumMg { get; set; }
     public JsonDocument? AdditionalNutrients { get; set; }
+
+    public new User? User { get; set; }
 }

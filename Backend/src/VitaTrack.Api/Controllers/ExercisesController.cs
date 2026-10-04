@@ -14,21 +14,52 @@ public class ExercisesController(IExerciseService exerciseService, IWebHostEnvir
     private readonly IExerciseService _exerciseService = exerciseService;
     private readonly IWebHostEnvironment _env = env;
 
+    /// <summary>Exercise library (built-in + your custom exercises), alphabetical.</summary>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<ExerciseDto>>>> GetExercises([FromQuery] string search = "", [FromQuery] int page = 1, [FromQuery] int limit = 20, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<ApiResponse<List<ExerciseDto>>>> GetExercises(
+        [FromQuery] string? search = null,
+        [FromQuery] string? muscle = null,
+        [FromQuery] string? equipment = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int limit = 500,
+        CancellationToken cancellationToken = default)
     {
-        var response = await _exerciseService.GetExercisesAsync(search, page, limit, cancellationToken);
+        var response = await _exerciseService.GetExercisesAsync(search, muscle, equipment, page, limit, cancellationToken);
         return Ok(response);
+    }
+
+    /// <summary>Exercise with all-time bests and recent sessions.</summary>
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<ExerciseDetailDto>> GetExercise(long id, [FromQuery] int sessions = 30, CancellationToken cancellationToken = default)
+    {
+        var detail = await _exerciseService.GetExerciseDetailAsync(id, sessions, cancellationToken);
+        return detail == null ? NotFound("Exercise not found") : Ok(detail);
+    }
+
+    /// <summary>
+    /// The sets from the last time each exercise was performed — powers the "Previous" column in the logger.
+    /// Example: GET /api/exercises/last-performance?ids=1,2,3
+    /// </summary>
+    [HttpGet("last-performance")]
+    public async Task<ActionResult<List<LastPerformanceDto>>> GetLastPerformance([FromQuery] string ids, CancellationToken cancellationToken)
+    {
+        var parsed = (ids ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(x => long.TryParse(x, out var v) ? v : 0)
+            .Where(v => v > 0)
+            .ToList();
+        if (parsed.Count == 0) return Ok(new List<LastPerformanceDto>());
+        return Ok(await _exerciseService.GetLastPerformancesAsync(parsed, cancellationToken));
     }
 
     [HttpPost]
     public async Task<ActionResult<ExerciseDto>> CreateExercise([FromBody] CreateExerciseRequest request, CancellationToken cancellationToken)
     {
         var dto = await _exerciseService.CreateExerciseAsync(request, cancellationToken);
-        return CreatedAtAction(nameof(GetExercises), new { id = dto.Id }, dto);
+        return CreatedAtAction(nameof(GetExercise), new { id = dto.Id }, dto);
     }
 
-    [HttpPut("{id}")]
+    [HttpPut("{id:long}")]
     public async Task<ActionResult<ExerciseDto>> UpdateExercise(long id, [FromBody] UpdateExerciseRequest request, CancellationToken cancellationToken)
     {
         var (dto, error) = await _exerciseService.UpdateExerciseAsync(id, request, cancellationToken);
@@ -38,7 +69,7 @@ public class ExercisesController(IExerciseService exerciseService, IWebHostEnvir
         return Ok(dto);
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:long}")]
     public async Task<IActionResult> DeleteExercise(long id, CancellationToken cancellationToken)
     {
         var (success, error) = await _exerciseService.DeleteExerciseAsync(id, _env.ContentRootPath, cancellationToken);
@@ -48,7 +79,7 @@ public class ExercisesController(IExerciseService exerciseService, IWebHostEnvir
         return NoContent();
     }
 
-    [HttpPost("{id}/demo-media")]
+    [HttpPost("{id:long}/demo-media")]
     [RequestSizeLimit(100_000_000)]
     [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)]
     public async Task<ActionResult<ExerciseDto>> UploadDemoMedia(long id, IFormFile file, CancellationToken cancellationToken)
@@ -62,7 +93,7 @@ public class ExercisesController(IExerciseService exerciseService, IWebHostEnvir
         return Ok(dto);
     }
 
-    [HttpGet("{id}/demo-media")]
+    [HttpGet("{id:long}/demo-media")]
     public async Task<IActionResult> GetDemoMedia(long id, CancellationToken cancellationToken)
     {
         var (path, contentType, error) = await _exerciseService.GetDemoMediaAsync(id, _env.ContentRootPath, cancellationToken);
@@ -72,7 +103,7 @@ public class ExercisesController(IExerciseService exerciseService, IWebHostEnvir
         return File(stream, contentType!, enableRangeProcessing: true);
     }
 
-    [HttpDelete("{id}/demo-media")]
+    [HttpDelete("{id:long}/demo-media")]
     public async Task<ActionResult<ExerciseDto>> DeleteDemoMedia(long id, CancellationToken cancellationToken)
     {
         var (dto, error) = await _exerciseService.DeleteDemoMediaAsync(id, _env.ContentRootPath, cancellationToken);

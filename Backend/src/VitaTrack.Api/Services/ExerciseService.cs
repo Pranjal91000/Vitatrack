@@ -3,11 +3,12 @@ using VitaTrack.Api.Abstractions;
 using VitaTrack.Api.Common.Models;
 using VitaTrack.Api.Workouts.DTOs;
 using VitaTrack.Core.Abstraction;
+using VitaTrack.Core.Common;
 using VitaTrack.Core.Entities;
 
 namespace VitaTrack.Api.Services
 {
-    public class ExerciseService(IExerciseRepository exerciseRepository, IJwtHelperService jwtHelperService) : IExerciseService
+    public class ExerciseService(IExerciseRepository exerciseRepository, IWorkoutRepository workoutRepository, IJwtHelperService jwtHelperService) : IExerciseService
     {
         private static readonly HashSet<string> AllowedVideoContentTypes = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -15,6 +16,7 @@ namespace VitaTrack.Api.Services
         };
 
         private readonly IExerciseRepository _exerciseRepository = exerciseRepository;
+        private readonly IWorkoutRepository _workoutRepository = workoutRepository;
         private readonly IJwtHelperService _jwtHelperService = jwtHelperService;
 
         private static string ExtensionForMime(string? mime) => mime?.ToLowerInvariant() switch
@@ -25,22 +27,67 @@ namespace VitaTrack.Api.Services
             _ => ".bin"
         };
 
-        private static ExerciseDto ToDto(Exercise e) => new(
-            e.Id,
-            e.Name,
-            e.Type,
-            e.MuscleGroups,
-            e.MeasurementType,
-            e.IsDefault,
-            e.DemoMediaId.HasValue ? $"exercises/{e.Id}/demo-media" : null);
+        private static ExerciseDto ToDto(Exercise e) => WorkoutMapper.ToDto(e);
 
-        public async Task<ApiResponse<List<ExerciseDto>>> GetExercisesAsync(string search, int page, int limit, CancellationToken cancellationToken = default)
+        public async Task<ApiResponse<List<ExerciseDto>>> GetExercisesAsync(string? search, string? muscle, string? equipment, int page, int limit, CancellationToken cancellationToken = default)
         {
-            var (exercises, totalCount) = await _exerciseRepository.GetExercisesAsync(search, page, limit, cancellationToken);
+            page = Math.Max(1, page);
+            limit = Math.Clamp(limit, 1, 500);
+            var (exercises, totalCount) = await _exerciseRepository.GetExercisesAsync(search, muscle, equipment, page, limit, cancellationToken);
             var dtos = exercises.Select(ToDto).ToList();
             var paginatedList = new PaginatedList<ExerciseDto>(dtos, totalCount, page, limit);
 
             return new ApiResponse<List<ExerciseDto>>(paginatedList.Items, ResponseMeta.FromPagination(paginatedList));
+        }
+
+        public async Task<ExerciseDetailDto?> GetExerciseDetailAsync(long id, int sessions, CancellationToken cancellationToken = default)
+        {
+            var exercise = await _exerciseRepository.GetByIdAsync(id, cancellationToken);
+            if (exercise == null) return null;
+
+            var userId = _jwtHelperService.GetUserId();
+            sessions = Math.Clamp(sessions, 1, 200);
+            var history = await _workoutRepository.GetExerciseHistoryAsync(userId, id, sessions, cancellationToken);
+            var bests = (await _workoutRepository.GetBestsAsync(userId, new List<long> { id }, null, null, cancellationToken)).FirstOrDefault();
+
+            var sessionDtos = history
+                .GroupBy(we => we.WorkoutId)
+                .Select(g =>
+                {
+                    var first = g.First();
+                    var sets = g.SelectMany(we => we.Sets).Where(s => !s.IsDeleted).OrderBy(s => s.SetNumber).ToList();
+                    var working = sets.Where(TrainingMath.IsWorkingSet).ToList();
+                    return new ExerciseSessionDto(
+                        first.WorkoutId,
+                        first.Workout.Name,
+                        first.Workout.Date,
+                        sets.Select(s => WorkoutMapper.ToDto(s)).ToList(),
+                        TrainingMath.Volume(sets),
+                        working.Select(s => TrainingMath.OneRepMax(s)).Max(),
+                        working.Max(s => s.WeightKg));
+                })
+                .OrderByDescending(s => s.Date)
+                .ToList();
+
+            return new ExerciseDetailDto(
+                ToDto(exercise),
+                sessionDtos.Count,
+                bests?.BestOneRepMax,
+                bests?.MaxWeightKg,
+                bests?.BestSetVolume,
+                bests?.MaxReps,
+                sessionDtos);
+        }
+
+        public async Task<List<LastPerformanceDto>> GetLastPerformancesAsync(List<long> exerciseIds, CancellationToken cancellationToken = default)
+        {
+            var ids = exerciseIds.Distinct().Take(50).ToList();
+            var rows = await _workoutRepository.GetLastPerformancesAsync(_jwtHelperService.GetUserId(), ids, cancellationToken);
+            return rows.Select(we => new LastPerformanceDto(
+                we.ExerciseId,
+                we.Workout.Date,
+                we.Sets.Where(s => !s.IsDeleted).OrderBy(s => s.SetNumber).Select(s => WorkoutMapper.ToDto(s)).ToList()))
+                .ToList();
         }
 
         public async Task<ExerciseDto> CreateExerciseAsync(CreateExerciseRequest request, CancellationToken cancellationToken = default)
@@ -49,9 +96,10 @@ namespace VitaTrack.Api.Services
             var exercise = new Exercise
             {
                 UserId = userId,
-                Name = request.Name,
+                Name = request.Name.Trim(),
                 Type = request.Type,
-                MuscleGroups = request.MuscleGroups,
+                MuscleGroups = request.MuscleGroups ?? Array.Empty<string>(),
+                Equipment = string.IsNullOrWhiteSpace(request.Equipment) ? null : request.Equipment.Trim(),
                 MeasurementType = request.MeasurementType,
                 IsDefault = false
             };
@@ -67,9 +115,10 @@ namespace VitaTrack.Api.Services
             if (exercise == null) return (null, "NotFound");
             if (exercise.UserId != userId) return (null, "Forbid");
 
-            exercise.Name = request.Name;
+            exercise.Name = request.Name.Trim();
             exercise.Type = request.Type;
-            exercise.MuscleGroups = request.MuscleGroups;
+            exercise.MuscleGroups = request.MuscleGroups ?? Array.Empty<string>();
+            exercise.Equipment = string.IsNullOrWhiteSpace(request.Equipment) ? null : request.Equipment.Trim();
             exercise.MeasurementType = request.MeasurementType;
 
             await _exerciseRepository.UpdateExerciseAsync(exercise, cancellationToken);

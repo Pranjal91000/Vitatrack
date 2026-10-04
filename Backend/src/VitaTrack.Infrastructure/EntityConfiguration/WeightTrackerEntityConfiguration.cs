@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using VitaTrack.Core.Entities;
 
@@ -12,7 +12,7 @@ namespace VitaTrack.Infrastructure.EntityConfiguration
             builder.HasKey(x => x.Id).HasName("pk_weight_tracker");
             builder.Property(x => x.DateRecordedOn).IsRequired();
             builder.Property(x => x.Weight).IsRequired().HasPrecision(5, 2);
-
+            builder.Property(x => x.BodyFatPercent).HasPrecision(5, 2);
 
             builder.HasOne(x => x.User)
                 .WithMany()

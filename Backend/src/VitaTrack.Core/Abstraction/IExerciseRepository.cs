@@ -4,11 +4,12 @@ namespace VitaTrack.Core.Abstraction
 {
     public interface IExerciseRepository
     {
-        Task<(List<Exercise> Exercises, int TotalCount)> GetExercisesAsync(string search, int page, int limit, CancellationToken cancellationToken = default);
+        Task<(List<Exercise> Exercises, int TotalCount)> GetExercisesAsync(string? search, string? muscle, string? equipment, int page, int limit, CancellationToken cancellationToken = default);
         Task<Exercise?> GetByIdAsync(long id, CancellationToken cancellationToken = default);
         Task<Exercise> CreateExerciseAsync(Exercise exercise, CancellationToken cancellationToken = default);
         Task<bool> UpdateExerciseAsync(Exercise exercise, CancellationToken cancellationToken = default);
         Task<bool> DeleteExerciseAsync(Exercise exercise, CancellationToken cancellationToken = default);
         Task<bool> SaveChangesAsync(CancellationToken cancellationToken = default);
+        Task<bool> IsUsedAsync(long exerciseId, CancellationToken cancellationToken = default);
     }
 }

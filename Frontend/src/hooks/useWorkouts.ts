@@ -1,150 +1,168 @@
-
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
-import type {
-    DailyWorkoutsDto,
-    CreateWorkoutCommand,
-    ExerciseDto,
-    CreateExerciseCommand,
-    UpdateExerciseCommand,
-    AppendExercisesCommand,
-    WorkoutHeatmapDayDto
-} from '@/types/api';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import api, { errorMessage } from '@/lib/api';
+import type {
+  CreateExerciseRequest, CreateWorkoutRequest, Exercise, ExerciseDetail, HeatmapDay, LastPerformance,
+  Paged, RoutineRequest, WorkoutDto, WorkoutSummary,
+} from '@/types/api';
 
-export const useWorkouts = (date: string) => {
-    return useQuery<DailyWorkoutsDto>({
-        queryKey: ['workouts', date],
-        queryFn: async () => {
-            const { data } = await api.get(`/workouts?date=${date}`);
-            return data;
-        },
-    });
+export const keys = {
+  exercises: ['exercises'] as const,
+  exercise: (id: number) => ['exercises', id] as const,
+  last: (ids: number[]) => ['exercises', 'last', ids.slice().sort((a, b) => a - b).join(',')] as const,
+  history: ['workouts', 'history'] as const,
+  workout: (id: number) => ['workouts', id] as const,
+  routines: ['routines'] as const,
+  routine: (id: number) => ['routines', id] as const,
+  heatmap: (from: string, to: string) => ['workouts', 'heatmap', from, to] as const,
 };
 
-export const useExercises = (search?: string) => {
-    return useQuery<ExerciseDto[]>({
-        queryKey: ['exercises', search],
-        queryFn: async () => {
-            const { data } = await api.get(`/exercises${search ? `?search=${search}` : ''}`);
-            // Handle backend returning wrapped objects (e.g. { $values: [...] } or { items: [...] } or { data: [...] })
-            if (Array.isArray(data)) return data;
-            if (data?.data && Array.isArray(data.data)) return data.data;
-            if (data?.$values) return data.$values;
-            if (data?.items) return data.items;
-            return [];
-        },
-        staleTime: 1000 * 60 * 60, // 1 hour
-    });
-};
+/** Whole library (built-in + custom) — fetched once and filtered on the device. */
+export const useExerciseLibrary = () =>
+  useQuery({
+    queryKey: keys.exercises,
+    queryFn: async () => (await api.get<Paged<Exercise[]>>('exercises', { params: { limit: 500 } })).data.data,
+    staleTime: 1000 * 60 * 30,
+  });
 
-export const useCreateWorkout = () => {
-    const queryClient = useQueryClient();
+export const useExerciseDetail = (id: number) =>
+  useQuery({
+    queryKey: keys.exercise(id),
+    queryFn: async () => (await api.get<ExerciseDetail>(`exercises/${id}`, { params: { sessions: 50 } })).data,
+    enabled: id > 0,
+  });
 
-    return useMutation({
-        mutationFn: (newWorkout: CreateWorkoutCommand) => api.post('/workouts', newWorkout),
-        onSuccess: (_data, variables) => {
-            toast.success('Workout logged!');
-            queryClient.invalidateQueries({ queryKey: ['workouts', variables.date] });
-            queryClient.invalidateQueries({ queryKey: ['workouts', 'heatmap'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard', variables.date] });
-        },
-        onError: () => {
-            toast.error('Failed to log workout');
-        }
-    });
-};
-
-export const useAppendExercises = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: ({ id, data }: { id: string, data: AppendExercisesCommand }) => api.post(`/workouts/${id}/exercises`, data),
-        onSuccess: () => {
-            toast.success('Exercises appended to daily session!');
-            queryClient.invalidateQueries({ queryKey: ['workouts'] });
-            queryClient.invalidateQueries({ queryKey: ['workouts', 'heatmap'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        },
-        onError: () => {
-            toast.error('Failed to append exercises');
-        }
-    });
-};
-
-export const useDeleteWorkout = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: (id: string) => api.delete(`/workouts/${id}`),
-        onSuccess: () => {
-            toast.success('Workout deleted');
-            queryClient.invalidateQueries({ queryKey: ['workouts'] });
-            queryClient.invalidateQueries({ queryKey: ['workouts', 'heatmap'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        },
-        onError: () => {
-            toast.error('Failed to delete workout');
-        }
-    })
-}
+export const useLastPerformance = (ids: number[]) =>
+  useQuery({
+    queryKey: keys.last(ids),
+    queryFn: async () => {
+      const { data } = await api.get<LastPerformance[]>('exercises/last-performance', { params: { ids: ids.join(',') } });
+      return Object.fromEntries(data.map((p) => [p.exerciseId, p])) as Record<number, LastPerformance>;
+    },
+    enabled: ids.length > 0,
+    staleTime: 1000 * 60 * 10,
+    placeholderData: (prev) => prev,
+  });
 
 export const useCreateExercise = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: async (newExercise: CreateExerciseCommand) => {
-            const { data } = await api.post<ExerciseDto>('/exercises', newExercise);
-            return data;
-        },
-        onSuccess: () => {
-            toast.success('Exercise created!');
-            queryClient.invalidateQueries({ queryKey: ['exercises'] });
-        },
-        onError: () => {
-            toast.error('Failed to create exercise');
-        }
-    });
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: CreateExerciseRequest) => (await api.post<Exercise>('exercises', body)).data,
+    onSuccess: (ex) => {
+      qc.setQueryData<Exercise[]>(keys.exercises, (old) => (old ? [...old, ex].sort((a, b) => a.name.localeCompare(b.name)) : old));
+      toast.success(`${ex.name} added to your library`);
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
 };
 
 export const useUpdateExercise = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: ({ id, ...data }: { id: string } & UpdateExerciseCommand) =>
-            api.put(`/exercises/${id}`, data),
-        onSuccess: () => {
-            toast.success('Exercise updated');
-            queryClient.invalidateQueries({ queryKey: ['exercises'] });
-        },
-        onError: () => {
-            toast.error('Failed to update exercise');
-        }
-    });
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }: CreateExerciseRequest & { id: number }) => (await api.put<Exercise>(`exercises/${id}`, body)).data,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.exercises }); toast.success('Exercise updated'); },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
 };
 
 export const useDeleteExercise = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: (id: string) => api.delete(`/exercises/${id}`),
-        onSuccess: () => {
-            toast.success('Exercise deleted');
-            queryClient.invalidateQueries({ queryKey: ['exercises'] });
-        },
-        onError: () => {
-            toast.error('Failed to delete exercise');
-        }
-    });
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete(`exercises/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.exercises }); toast.success('Exercise deleted'); },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
 };
 
-export const useGetWorkoutHeatmapData = (fromDate: string, toDate: string) =>
-    useQuery<WorkoutHeatmapDayDto[]>({
-        queryKey: ['workouts', 'heatmap', fromDate, toDate],
-        queryFn: async () => {
-            const { data } = await api.get<WorkoutHeatmapDayDto[]>(
-                `/workouts/heatmap?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`
-            );
-            return Array.isArray(data) ? data : [];
-        },
-    });
+// ── Workouts ─────────────────────────────────────────────────────────────────
+
+export const useWorkoutHistory = () =>
+  useInfiniteQuery({
+    queryKey: keys.history,
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) =>
+      (await api.get<Paged<WorkoutSummary[]>>('workouts/history', { params: { page: pageParam, limit: 20 } })).data,
+    getNextPageParam: (last) => (last.meta?.hasNext ? last.meta.page + 1 : undefined),
+  });
+
+export const useWorkout = (id: number) =>
+  useQuery({
+    queryKey: keys.workout(id),
+    queryFn: async () => (await api.get<WorkoutDto>(`workouts/${id}`)).data,
+    enabled: id > 0,
+  });
+
+const invalidateTraining = (qc: ReturnType<typeof useQueryClient>) => {
+  qc.invalidateQueries({ queryKey: ['workouts'] });
+  qc.invalidateQueries({ queryKey: ['exercises'] });
+  qc.invalidateQueries({ queryKey: ['dashboard'] });
+  qc.invalidateQueries({ queryKey: ['reports'] });
+};
+
+export const useSaveWorkout = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, body }: { id?: number; body: CreateWorkoutRequest }) =>
+      (id ? await api.put<WorkoutDto>(`workouts/${id}`, body) : await api.post<WorkoutDto>('workouts', body)).data,
+    onSuccess: (w) => {
+      qc.setQueryData(keys.workout(w.id), w);
+      invalidateTraining(qc);
+    },
+  });
+};
+
+export const useDeleteWorkout = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete(`workouts/${id}`),
+    onSuccess: () => { invalidateTraining(qc); toast.success('Workout deleted'); },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+};
+
+export const useHeatmap = (from: string, to: string) =>
+  useQuery({
+    queryKey: keys.heatmap(from, to),
+    queryFn: async () => (await api.get<HeatmapDay[]>('workouts/heatmap', { params: { from, to } })).data,
+  });
+
+// ── Routines ─────────────────────────────────────────────────────────────────
+
+export const useRoutines = () =>
+  useQuery({ queryKey: keys.routines, queryFn: async () => (await api.get<WorkoutDto[]>('routines')).data });
+
+export const useRoutine = (id: number) =>
+  useQuery({ queryKey: keys.routine(id), queryFn: async () => (await api.get<WorkoutDto>(`routines/${id}`)).data, enabled: id > 0 });
+
+export const useSaveRoutine = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, body }: { id?: number; body: RoutineRequest }) =>
+      (id ? await api.put<WorkoutDto>(`routines/${id}`, body) : await api.post<WorkoutDto>('routines', body)).data,
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: keys.routines });
+      qc.setQueryData(keys.routine(r.id), r);
+      toast.success('Routine saved');
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+};
+
+export const useDeleteRoutine = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete(`routines/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: keys.routines }); toast.success('Routine deleted'); },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+};
+
+export const useSaveAsRoutine = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ workoutId, name }: { workoutId: number; name?: string }) =>
+      (await api.post<WorkoutDto>(`workouts/${workoutId}/save-as-routine`, { name })).data,
+    onSuccess: (r) => { qc.invalidateQueries({ queryKey: keys.routines }); toast.success(`Saved as routine “${r.name}”`); },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+};

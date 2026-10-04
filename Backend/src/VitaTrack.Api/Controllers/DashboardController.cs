@@ -15,7 +15,13 @@ public class DashboardController(IDashboardService dashboardService) : Controlle
     [HttpGet("daily")]
     public async Task<ActionResult<DashboardDailyDto>> GetDailyDashboard([FromQuery] string date, CancellationToken cancellationToken)
     {
-        var result = await _dashboardService.GetDailyDashboardAsync(date, cancellationToken);
-        return Ok(result);
+        return Ok(await _dashboardService.GetDailyDashboardAsync(date, cancellationToken));
+    }
+
+    /// <summary>Single payload for the home screen: today's nutrition vs goals, this week's training, weight trend.</summary>
+    [HttpGet("summary")]
+    public async Task<ActionResult<DashboardSummaryDto>> GetSummary([FromQuery] string? date, CancellationToken cancellationToken)
+    {
+        return Ok(await _dashboardService.GetSummaryAsync(date, cancellationToken));
     }
 }

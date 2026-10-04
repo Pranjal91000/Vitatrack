@@ -5,130 +5,176 @@ using VitaTrack.Core.Entities;
 
 namespace VitaTrack.Api.Services
 {
-    public class MealService(IMealRepository mealRepository, IJwtHelperService jwtHelperService) : IMealService
+    public class MealService(IMealRepository mealRepository, IUserRepository userRepository, IJwtHelperService jwtHelperService) : IMealService
     {
-        private readonly IMealRepository _mealRepository = mealRepository;
-        private readonly IJwtHelperService _jwtHelperService = jwtHelperService;
+        private readonly IMealRepository _meals = mealRepository;
+        private readonly IUserRepository _users = userRepository;
+        private readonly IJwtHelperService _jwt = jwtHelperService;
 
         public async Task<DailyMealsDto?> GetDailyMealsAsync(string dateString, CancellationToken cancellationToken = default)
         {
             if (!DateOnly.TryParse(dateString, out var parsedDate))
                 return null;
 
-            var userId = _jwtHelperService.GetUserId();
-            var meals = await _mealRepository.GetDailyMealsAsync(userId, parsedDate, cancellationToken);
-            var mealDtos = meals.Select(MapMealToDto).ToList();
-            return new DailyMealsDto(mealDtos);
+            var userId = _jwt.GetUserId();
+            var meals = await _meals.GetDailyMealsAsync(userId, parsedDate, cancellationToken);
+            var dtos = meals.Select(m => NutritionMapper.ToDto(m)).ToList();
+            var user = await _users.GetByIdAsync(userId, cancellationToken);
+
+            return new DailyMealsDto(
+                parsedDate,
+                dtos,
+                NutrientSummaryDto.Sum(dtos.Select(m => m.GrandTotal)),
+                GoalCalculator.Resolve(user));
         }
 
         public async Task<(MealDto? Meal, string? Error)> CreateMealAsync(CreateMealRequest request, CancellationToken cancellationToken = default)
         {
-            var userId = _jwtHelperService.GetUserId();
-            if (!await _mealRepository.CanUseMealSlotAsync(userId, request.MealSlotId, cancellationToken))
+            var userId = _jwt.GetUserId();
+            if (!await _meals.CanUseMealSlotAsync(userId, request.MealSlotId, cancellationToken))
                 return (null, "Invalid meal slot.");
 
-            var meal = new Meal
-            {
-                UserId = userId,
-                Date = request.Date,
-                MealSlotId = request.MealSlotId,
-                Notes = request.Notes
-            };
-
-            var foodIds = request.Foods.Select(f => f.FoodId).ToList();
-            var foods = await _mealRepository.GetFoodsByIdsAsync(foodIds, cancellationToken);
-
-            if (foods.Count != foodIds.Distinct().Count())
+            var foodIds = request.Foods.Select(f => f.FoodId).Distinct().ToList();
+            var foods = await _meals.GetFoodsByIdsAsync(foodIds, cancellationToken);
+            if (foods.Count != foodIds.Count)
                 return (null, "One or more foods not found.");
+
+            // Reuse the existing meal for this slot/day so a day never shows two "Breakfast" cards.
+            var meal = await _meals.GetBySlotAndDateAsync(userId, request.MealSlotId, request.Date, cancellationToken);
+            var isNew = meal == null;
+            meal ??= new Meal { UserId = userId, Date = request.Date, MealSlotId = request.MealSlotId, Notes = request.Notes };
 
             foreach (var item in request.Foods)
             {
                 var food = foods.First(f => f.Id == item.FoodId);
-                meal.MealFoods.Add(new MealFood
-                {
-                    FoodId = food.Id,
-                    Quantity = item.Quantity,
-                    Food = food
-                });
+                meal.MealFoods.Add(new MealFood { FoodId = food.Id, Quantity = item.Quantity, Food = food });
             }
 
-            var createdMeal = await _mealRepository.CreateMealAsync(meal, cancellationToken);
-            return (MapMealToDto(createdMeal), null);
+            if (isNew)
+            {
+                await _meals.CreateMealAsync(meal, cancellationToken);
+            }
+            else
+            {
+                await _meals.SaveChangesAsync(cancellationToken);
+            }
+
+            var daily = await _meals.GetDailyMealsAsync(userId, request.Date, cancellationToken);
+            var saved = daily.First(m => m.Id == meal.Id);
+            return (NutritionMapper.ToDto(saved), null);
         }
 
         public async Task<(bool Success, string? Error)> DeleteMealAsync(long mealId, CancellationToken cancellationToken = default)
         {
-            var userId = _jwtHelperService.GetUserId();
-            var meal = await _mealRepository.GetByIdAsync(mealId, cancellationToken);
+            var meal = await _meals.GetByIdAsync(mealId, cancellationToken);
             if (meal == null) return (false, "NotFound");
-            if (meal.UserId != userId) return (false, "Forbid");
+            if (meal.UserId != _jwt.GetUserId()) return (false, "Forbid");
 
-            await _mealRepository.DeleteMealAsync(meal, cancellationToken);
+            await _meals.DeleteMealAsync(meal, cancellationToken);
             return (true, null);
         }
 
         public async Task<(NutrientSummaryDto? Summary, string? Error)> UpdateMealFoodAsync(long mealId, long foodId, UpdateMealFoodRequest request, CancellationToken cancellationToken = default)
         {
-            var userId = _jwtHelperService.GetUserId();
-            var meal = await _mealRepository.GetByIdAsync(mealId, cancellationToken);
+            var meal = await _meals.GetByIdAsync(mealId, cancellationToken);
             if (meal == null) return (null, "MealNotFound");
-            if (meal.UserId != userId) return (null, "Forbid");
+            if (meal.UserId != _jwt.GetUserId()) return (null, "Forbid");
 
-            var mealFood = await _mealRepository.GetMealFoodAsync(mealId, foodId, cancellationToken);
+            var mealFood = await _meals.GetMealFoodAsync(mealId, foodId, cancellationToken);
             if (mealFood == null) return (null, "FoodNotFound");
 
             if (request.Quantity <= 0)
             {
-                await _mealRepository.DeleteMealFoodAsync(mealFood, cancellationToken);
-                return (new NutrientSummaryDto(0, 0, 0, 0), null);
+                await _meals.DeleteMealFoodAsync(mealFood, cancellationToken);
+                return (NutrientSummaryDto.Empty, null);
             }
 
             mealFood.Quantity = request.Quantity;
-            await _mealRepository.SaveChangesAsync(cancellationToken);
-
-            var totals = new NutrientSummaryDto(
-                (int)((decimal)mealFood.Quantity * (decimal)mealFood.Food.Calories),
-                (decimal)mealFood.Quantity * mealFood.Food.ProteinG,
-                (decimal)mealFood.Quantity * mealFood.Food.CarbsG,
-                (decimal)mealFood.Quantity * mealFood.Food.FatG
-            );
-
-            return (totals, null);
+            await _meals.SaveChangesAsync(cancellationToken);
+            return (NutritionMapper.Totals(mealFood), null);
         }
 
-        private static MealDto MapMealToDto(Meal m)
+        public async Task<(MealEntryDto? Entry, string? Error)> AddEntryAsync(AddMealEntryRequest request, CancellationToken cancellationToken = default)
         {
-            var foodDtos = m.MealFoods.Select(mf =>
+            var userId = _jwt.GetUserId();
+            if (!await _meals.CanUseMealSlotAsync(userId, request.MealSlotId, cancellationToken))
+                return (null, "Invalid meal slot.");
+
+            var food = (await _meals.GetFoodsByIdsAsync(new List<long> { request.FoodId }, cancellationToken)).FirstOrDefault();
+            if (food == null) return (null, "Food not found.");
+
+            var meal = await _meals.GetBySlotAndDateAsync(userId, request.MealSlotId, request.Date, cancellationToken);
+            if (meal == null)
             {
-                var foodDto = new FoodDto(
-                    mf.Food.Id,
-                    mf.Food.Name,
-                    mf.Food.ServingSize,
-                    mf.Food.Unit,
-                    mf.Food.Calories,
-                    mf.Food.ProteinG,
-                    mf.Food.CarbsG,
-                    mf.Food.FatG
-                );
+                meal = new Meal { UserId = userId, Date = request.Date, MealSlotId = request.MealSlotId };
+                await _meals.CreateMealAsync(meal, cancellationToken);
+            }
 
-                var totals = new NutrientSummaryDto(
-                    (int)((decimal)mf.Quantity * (decimal)mf.Food.Calories),
-                    (decimal)mf.Quantity * mf.Food.ProteinG,
-                    (decimal)mf.Quantity * mf.Food.CarbsG,
-                    (decimal)mf.Quantity * mf.Food.FatG
-                );
+            var entry = new MealFood { MealId = meal.Id, FoodId = food.Id, Quantity = request.Quantity };
+            await _meals.AddMealFoodAsync(entry, cancellationToken);
+            entry.Food ??= food;
 
-                return new MealFoodDto(mf.Id, foodDto, mf.Quantity, totals);
-            }).ToList();
+            return (new MealEntryDto(meal.Id, meal.MealSlotId, meal.Date, NutritionMapper.ToDto(entry)), null);
+        }
 
-            var grandTotal = new NutrientSummaryDto(
-                 foodDtos.Sum(x => x.Totals.Calories),
-                 foodDtos.Sum(x => x.Totals.ProteinG),
-                 foodDtos.Sum(x => x.Totals.CarbsG),
-                 foodDtos.Sum(x => x.Totals.FatG)
-            );
+        public async Task<(MealEntryDto? Entry, string? Error)> UpdateEntryAsync(long mealFoodId, UpdateMealFoodRequest request, CancellationToken cancellationToken = default)
+        {
+            var entry = await _meals.GetMealFoodByIdAsync(mealFoodId, cancellationToken);
+            if (entry == null || entry.Meal.UserId != _jwt.GetUserId()) return (null, "NotFound");
 
-            return new MealDto(m.Id, m.MealSlotId, m.MealSlot.Name, m.Date, m.Notes, foodDtos, grandTotal);
+            if (request.Quantity <= 0)
+            {
+                await _meals.DeleteMealFoodAsync(entry, cancellationToken);
+                return (null, null);
+            }
+
+            entry.Quantity = request.Quantity;
+            await _meals.SaveChangesAsync(cancellationToken);
+            return (new MealEntryDto(entry.MealId, entry.Meal.MealSlotId, entry.Meal.Date, NutritionMapper.ToDto(entry)), null);
+        }
+
+        public async Task<bool> DeleteEntryAsync(long mealFoodId, CancellationToken cancellationToken = default)
+        {
+            var entry = await _meals.GetMealFoodByIdAsync(mealFoodId, cancellationToken);
+            if (entry == null || entry.Meal.UserId != _jwt.GetUserId()) return false;
+
+            await _meals.DeleteMealFoodAsync(entry, cancellationToken);
+            return true;
+        }
+
+        public async Task<(int Copied, string? Error)> CopyMealsAsync(CopyMealsRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request.FromDate == request.ToDate) return (0, "Pick a different day to copy from.");
+
+            var userId = _jwt.GetUserId();
+            var source = await _meals.GetDailyMealsAsync(userId, request.FromDate, cancellationToken);
+            if (request.MealSlotId.HasValue)
+                source = source.Where(m => m.MealSlotId == request.MealSlotId.Value).ToList();
+
+            var copied = 0;
+            foreach (var srcMeal in source)
+            {
+                var items = srcMeal.MealFoods.Where(mf => !mf.IsDeleted).ToList();
+                if (items.Count == 0) continue;
+
+                var target = await _meals.GetBySlotAndDateAsync(userId, srcMeal.MealSlotId, request.ToDate, cancellationToken);
+                if (target == null)
+                {
+                    target = new Meal { UserId = userId, Date = request.ToDate, MealSlotId = srcMeal.MealSlotId };
+                    foreach (var mf in items)
+                        target.MealFoods.Add(new MealFood { FoodId = mf.FoodId, Quantity = mf.Quantity });
+                    await _meals.CreateMealAsync(target, cancellationToken);
+                }
+                else
+                {
+                    foreach (var mf in items)
+                        target.MealFoods.Add(new MealFood { FoodId = mf.FoodId, Quantity = mf.Quantity });
+                    await _meals.SaveChangesAsync(cancellationToken);
+                }
+                copied += items.Count;
+            }
+
+            return (copied, null);
         }
     }
 }

@@ -33,6 +33,13 @@ public class ReportsController(IReportService reportService) : ControllerBase
         return Ok(report);
     }
 
+    /// <summary>Weekly training volume/frequency and the muscle split for the last N weeks.</summary>
+    [HttpGet("progress")]
+    public async Task<ActionResult<ProgressReportDto>> GetProgressReport([FromQuery] int weeks = 12, CancellationToken cancellationToken = default)
+    {
+        return Ok(await _reportService.GetProgressReportAsync(weeks, cancellationToken));
+    }
+
     [HttpGet("exercises/{exerciseId}/monthly")]
     public async Task<ActionResult<ExerciseMonthlyReportDto>> GetExerciseMonthlyReport(long exerciseId, [FromQuery] string month, CancellationToken cancellationToken)
     {

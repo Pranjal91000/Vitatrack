@@ -1,12 +1,14 @@
 using VitaTrack.Core.Common;
 using VitaTrack.Core.Enums;
 
-
 namespace VitaTrack.Core.Entities;
 
+/// <summary>
+/// Exercise library entry. UserId == null means a built-in (seeded) exercise visible to everyone.
+/// </summary>
 public class Exercise : BaseEntity<long>
 {
-    public long? UserId { get; set; }
+    public new long? UserId { get; set; }
     public string Name { get; set; } = null!;
     public short Type { get; set; }
     public string[] MuscleGroups { get; set; } = Array.Empty<string>();
@@ -18,5 +20,5 @@ public class Exercise : BaseEntity<long>
     public string? DemoMediaFileName { get; set; }
     public string? DemoMediaContentType { get; set; }
 
-    public User? User { get; set; }
+    public new User? User { get; set; }
 }

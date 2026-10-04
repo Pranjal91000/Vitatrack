@@ -1,58 +1,65 @@
 using VitaTrack.Api.Abstractions;
 using VitaTrack.Api.Users.DTOs;
 using VitaTrack.Core.Abstraction;
+using VitaTrack.Core.Common;
+using VitaTrack.Core.Entities;
 
 namespace VitaTrack.Api.Services
 {
     public class UserService(IUserRepository userRepository, IJwtHelperService jwtHelperService) : IUserService
     {
         private readonly IUserRepository _userRepository = userRepository;
-        private readonly IJwtHelperService _jwtHelperService = jwtHelperService;
+        private readonly IJwtHelperService _jwt = jwtHelperService;
 
         public async Task<UserProfileDto?> GetProfileAsync(CancellationToken cancellationToken = default)
         {
-            var userId = _jwtHelperService.GetUserId();
-            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
-            if (user == null) return null;
-
-            return new UserProfileDto(
-                user.Id,
-                user.Email,
-                user.Name,
-                user.Age,
-                user.WeightKg,
-                user.HeightCm,
-                user.Bmr
-            );
+            var user = await _userRepository.GetByIdAsync(_jwt.GetUserId(), cancellationToken);
+            return user == null ? null : ToDto(user);
         }
 
         public async Task<UserProfileDto?> UpdateProfileAsync(UpdateProfileRequest request, CancellationToken cancellationToken = default)
         {
-            var userId = _jwtHelperService.GetUserId();
-            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            var user = await _userRepository.GetByIdAsync(_jwt.GetUserId(), cancellationToken);
             if (user == null) return null;
 
-            if (request.Name != null) user.Name = request.Name;
-            if (request.Age.HasValue) user.Age = request.Age.Value;
-            if (request.WeightKg.HasValue) user.WeightKg = request.WeightKg.Value;
-            if (request.HeightCm.HasValue) user.HeightCm = request.HeightCm.Value;
+            if (!string.IsNullOrWhiteSpace(request.Name)) user.Name = request.Name.Trim();
+            user.Age = request.Age;
+            user.WeightKg = request.WeightKg;
+            user.HeightCm = request.HeightCm;
+            user.Sex = request.Sex;
+            user.ActivityFactor = request.ActivityFactor;
+            user.CalorieGoal = request.CalorieGoal;
+            user.ProteinGoalG = request.ProteinGoalG;
+            user.CarbsGoalG = request.CarbsGoalG;
+            user.FatGoalG = request.FatGoalG;
+            user.WeightGoalKg = request.WeightGoalKg;
+            if (request.WeightUnit != null) user.WeightUnit = request.WeightUnit;
+            if (request.DefaultRestSeconds.HasValue) user.DefaultRestSeconds = request.DefaultRestSeconds.Value;
 
-            if (user.WeightKg.HasValue && user.HeightCm.HasValue && user.Age.HasValue)
-            {
-                user.Bmr = (10m * user.WeightKg.Value) + (6.25m * user.HeightCm.Value) - (5m * user.Age.Value) + 5;
-            }
+            user.Bmr = TrainingMath.Bmr(user.WeightKg, user.HeightCm, user.Age, user.Sex);
 
             await _userRepository.UpdateUserAsync(user, cancellationToken);
-
-            return new UserProfileDto(
-                user.Id,
-                user.Email,
-                user.Name,
-                user.Age,
-                user.WeightKg,
-                user.HeightCm,
-                user.Bmr
-            );
+            return ToDto(user);
         }
+
+        public static UserProfileDto ToDto(User user) => new(
+            user.Id,
+            user.Email,
+            user.Name,
+            user.Age,
+            user.WeightKg,
+            user.HeightCm,
+            user.Bmr,
+            user.Sex,
+            user.ActivityFactor,
+            user.CalorieGoal,
+            user.ProteinGoalG,
+            user.CarbsGoalG,
+            user.FatGoalG,
+            user.WeightGoalKg,
+            user.WeightUnit,
+            user.DefaultRestSeconds,
+            GoalCalculator.Tdee(user),
+            GoalCalculator.Resolve(user));
     }
 }

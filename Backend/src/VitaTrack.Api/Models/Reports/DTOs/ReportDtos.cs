@@ -23,3 +23,18 @@ public record WorkoutReportDto(
     int TotalSessions,
     int TotalDurationMinutes,
     decimal TotalDistanceKm);
+
+// Training progress
+public record WeeklyTrainingDto(DateOnly WeekStart, int Workouts, decimal Volume, int Sets, int DurationMinutes);
+
+/// <param name="Sets">Working sets; the first listed muscle counts 1, secondary muscles 0.5.</param>
+public record MuscleSetsDto(string Muscle, decimal Sets);
+
+public record ProgressReportDto(
+    DateOnly From,
+    DateOnly To,
+    List<WeeklyTrainingDto> Weeks,
+    List<MuscleSetsDto> Muscles,
+    int TotalWorkouts,
+    decimal TotalVolume,
+    int TotalDurationMinutes);

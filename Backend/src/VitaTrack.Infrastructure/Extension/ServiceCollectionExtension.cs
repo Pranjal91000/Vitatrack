@@ -6,7 +6,6 @@ using VitaTrack.Core.Interfaces;
 using VitaTrack.Core.Services;
 using VitaTrack.Infrastructure.Data;
 using VitaTrack.Infrastructure.Repositories;
-using VitaTrack.Infrastructure.Data;
 
 namespace VitaTrack.Infrastructure.Extension;
 

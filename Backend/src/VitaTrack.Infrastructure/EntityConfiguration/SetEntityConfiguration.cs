@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using VitaTrack.Core.Entities;
+using VitaTrack.Core.Enums;
 
 namespace VitaTrack.Infrastructure.EntityConfiguration
 {
@@ -16,6 +17,11 @@ namespace VitaTrack.Infrastructure.EntityConfiguration
             builder.Property(x => x.DistanceKm).HasPrecision(10, 2);
             builder.Property(x => x.ElevationGainM).HasPrecision(10, 2);
             builder.Property(x => x.PaceMinPerKm).HasPrecision(10, 2);
+
+            builder.Property(x => x.SetType)
+                .HasConversion<short>()
+                .HasDefaultValue(SetType.Normal);
+            builder.Property(x => x.IsCompleted).HasDefaultValue(true);
 
             builder.HasOne(x => x.WorkoutExercise)
                 .WithMany(we => we.Sets)

@@ -1,28 +1,36 @@
-using VitaTrack.Infrastructure;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
-using VitaTrack.Infrastructure.Extension;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using VitaTrack.Api.Extension;
 using VitaTrack.Api.Middlewares;
 using VitaTrack.Api.Options;
+using VitaTrack.Infrastructure.Data;
+using VitaTrack.Infrastructure.Extension;
 
 var builder = WebApplication.CreateBuilder(args);
 var jwtSettings = builder.Configuration
-    .GetSection("JwtSettings")
-    .Get<JwtOption>();
+    .GetSection(JwtOption.SectionName)
+    .Get<JwtOption>() ?? throw new InvalidOperationException("JwtSettings section is missing.");
 
 builder.Services.AddTransient<CorrelationIdMiddleware>();
 builder.Services.AddTransient<RequestLoggingMiddleware>();
+builder.Services.AddTransient<ExceptionHandlingMiddleware>();
 
-// Add services to the container.
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddServices();
 builder.Services.AddControllers();
+
+// FluentValidation: every AbstractValidator<T> in this assembly runs automatically and
+// returns a 400 ValidationProblemDetails before the controller action executes.
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-//builder.WebHost.UseUrls("http://0.0.0.0:5177");
 
 // JWT
 builder.Services
@@ -33,7 +41,6 @@ builder.Services
     })
     .AddJwtBearer(options =>
     {
-        // Keep the claim names exactly as they appear in the token (no surprise remapping).
         options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -44,7 +51,7 @@ builder.Services
             ValidIssuer = jwtSettings.Issuer,
             ValidAudience = jwtSettings.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
-            ClockSkew = TimeSpan.Zero,
+            ClockSkew = TimeSpan.FromSeconds(30),
             NameClaimType = JwtRegisteredClaimNames.Name,
         };
     });
@@ -54,9 +61,7 @@ builder.Services.AddAuthorization();
 // CORS
 builder.Services.AddCors(options =>
 {
-
-    var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>();
-
+    var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
     options.AddPolicy("DefinedOrigins", policy =>
     {
         policy
@@ -67,26 +72,37 @@ builder.Services.AddCors(options =>
     });
 });
 
-
 builder.Services.AddOptions<JwtOption>()
     .BindConfiguration(JwtOption.SectionName);
 
 var app = builder.Build();
 
+// Apply pending migrations and make sure the built-in exercise library / foods / meal slots exist.
+if (builder.Configuration.GetValue("Database:MigrateOnStartup", true))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    await db.Database.MigrateAsync();
+    await DbSeeder.SeedAsync(db, logger);
+}
+
 app.UseSwagger();
-    app.UseSwaggerUI();
+app.UseSwaggerUI();
 
-// Global Exception Handler
-
-//app.UseExceptionHandler();                   // 1. Catch all unhandled exceptions
-app.UseCors("DefinedOrigins");               // 1. CORS headers (must be before HTTPS redirect so OPTIONS preflights aren't redirected)
-app.UseHttpsRedirection();                   // 2. Redirect HTTP → HTTPS
-app.UseRouting();                            // 3. Match routes
-app.UseAuthentication();                     // 4. Establish identity
-app.UseAuthorization();                      // 5. Check permissions
-app.UseMiddleware<RequestLoggingMiddleware>();// 10. Custom middleware
-app.UseMiddleware<CorrelationIdMiddleware>();// 10. Custom middleware
-app.MapControllers();                        // 11. Execute endpoints
-
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseCors("DefinedOrigins");
+if (!app.Environment.IsDevelopment())
+{
+    // In development the Vite dev server proxies plain HTTP; redirecting would break phone testing on the LAN.
+    app.UseHttpsRedirection();
+}
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.MapControllers();
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 
 app.Run();
