@@ -87,10 +87,6 @@ app.UseSwaggerUI();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseCors("DefinedOrigins");
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
