@@ -1,10 +1,7 @@
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
     ResponsiveContainer,
-    LineChart,
-    Line,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -12,7 +9,6 @@ import {
     ReferenceLine,
     Area,
     AreaChart,
-    type TooltipProps,
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +25,7 @@ interface WeightTrendChartProps {
 
 const TIME_RANGES: WeightTimeRange[] = ['7D', '30D', '3M', '6M', '1Y', 'All'];
 
-function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { date: string; weight: number; fullDate: string } }> }) {
     if (!active || !payload?.length) return null;
     const point = payload[0].payload as { date: string; weight: number; fullDate: string };
     return (
