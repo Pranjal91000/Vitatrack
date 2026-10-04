@@ -62,10 +62,15 @@ builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
 {
     var origins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+    var allowedOrigins = origins
+        .Append("https://vitatrack-production.up.railway.app")
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
     options.AddPolicy("DefinedOrigins", policy =>
     {
         policy
-            .WithOrigins(origins)
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
