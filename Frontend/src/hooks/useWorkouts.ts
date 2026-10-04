@@ -169,7 +169,14 @@ export const useSaveAsRoutine = () => {
 
 
 // Legacy tracker compatibility wrappers
-export const useExercises = () => useExerciseLibrary();
+export const useExercises = (search = '') => {
+  const query = useExerciseLibrary();
+  const needle = search.trim().toLowerCase();
+  return {
+    ...query,
+    data: needle ? (query.data ?? []).filter((exercise) => exercise.name.toLowerCase().includes(needle)) : query.data,
+  };
+};
 export const useCreateWorkout = () => {
   const save = useSaveWorkout();
   return { ...save, mutate: (body: CreateWorkoutRequest, options?: Parameters<typeof save.mutate>[1]) => save.mutate({ body }, options) };
@@ -185,7 +192,10 @@ export const useWorkouts = (date: string) => useQuery({
   queryKey: ['workouts', 'daily', date],
   queryFn: async () => {
     const { data } = await api.get<{ workouts: WorkoutSummary[] }>('workouts/history', { params: { date, page: 1, limit: 20 } });
-    return data;
+    const workouts = await Promise.all(
+      (data.workouts ?? []).map(async (summary) => (await api.get<WorkoutDto>(`workouts/${summary.id}`)).data)
+    );
+    return { workouts };
   },
 });
 export const useGetWorkoutHeatmapData = (from: string, to: string) => useHeatmap(from, to);
