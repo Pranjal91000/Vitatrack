@@ -89,7 +89,7 @@ export const useUpdateMealFood = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ mealId, foodId, quantity }: { mealId: string, foodId: string } & UpdateMealFoodCommand) =>
+        mutationFn: ({ mealId, foodId, quantity }: { mealId: number, foodId: number } & UpdateMealFoodCommand) =>
             api.put(`/meals/${mealId}/foods/${foodId}`, { quantity }),
 
         onMutate: async () => {
@@ -116,7 +116,7 @@ export const useDeleteMeal = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (id: string) => api.delete(`/meals/${id}`),
+        mutationFn: (id: number) => api.delete(`/meals/${id}`),
         onSuccess: () => {
             toast.success('Meal deleted');
             queryClient.invalidateQueries({ queryKey: ['meals'] });
