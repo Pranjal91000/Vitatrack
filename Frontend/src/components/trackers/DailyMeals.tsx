@@ -74,7 +74,7 @@ export function DailyMeals() {
                     <Collapsible
                         key={meal.id}
                         open={openStates[meal.id] ?? true}
-                        onOpenChange={() => toggleOpen(meal.id)}
+                        onOpenChange={() => toggleOpen(String(meal.id))}
                         className="space-y-2"
                     >
                         <div className="flex items-center justify-between group">
@@ -90,7 +90,7 @@ export function DailyMeals() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => deleteMeal.mutate(String(meal.id))}
+                                    onClick={() => deleteMeal.mutate(meal.id)}
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
