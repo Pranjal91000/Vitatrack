@@ -2,7 +2,12 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import type { AuthResponse } from '@/types/api';
 
-const origin = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+const configuredOrigin = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+// Production is deployed separately from the API. Keep a fallback so a missing/stale
+// Railway build variable cannot silently send API requests to the frontend host.
+const origin = import.meta.env.PROD
+  ? 'https://vitatrack-backend-production.up.railway.app'
+  : configuredOrigin;
 export const API_BASE = `${origin}/api/`;
 
 const api = axios.create({
