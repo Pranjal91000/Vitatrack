@@ -20,15 +20,15 @@ export interface UserProfile {
 }
 
 export interface UpdateProfileRequest {
-  name?: string; age: number | null; weightKg: number | null; heightCm: number | null;
-  sex: Sex | null; activityFactor: number | null;
-  calorieGoal: number | null; proteinGoalG: number | null; carbsGoalG: number | null; fatGoalG: number | null;
-  weightGoalKg: number | null; weightUnit: WeightUnit; defaultRestSeconds: number;
+  name?: string; age?: number | null; weightKg?: number | null; heightCm?: number | null;
+  sex?: Sex | null; activityFactor?: number | null;
+  calorieGoal?: number | null; proteinGoalG?: number | null; carbsGoalG?: number | null; fatGoalG?: number | null;
+  weightGoalKg?: number | null; weightUnit?: WeightUnit; defaultRestSeconds?: number;
 }
 
 // ── Exercises & workouts ─────────────────────────────────────────────────────
 /** 0 WeightReps · 1 TimeDistance · 2 Other · 3 BodyweightReps · 4 TimedHold · 5 DistanceOnly */
-export type MeasurementType = 0 | 1 | 2 | 3 | 4 | 5;
+export type MeasurementType = number;
 /** 0 Normal · 1 Warm-up · 2 Drop · 3 Failure */
 export type SetType = 0 | 1 | 2 | 3;
 
