@@ -32,7 +32,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 
 interface MealItemBuilder {
-  foodId: string;
+  foodId: number;
   name: string;
   calories: number;
   proteinG: number;
@@ -69,7 +69,7 @@ export function MealBuilder() {
   });
 
   const addItem = (food: {
-    id: string;
+    id: number;
     name: string;
     calories: number;
     proteinG: number;
