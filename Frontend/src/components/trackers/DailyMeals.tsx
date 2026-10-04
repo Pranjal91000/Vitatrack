@@ -90,7 +90,7 @@ export function DailyMeals() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => deleteMeal.mutate(meal.id)}
+                                    onClick={() => deleteMeal.mutate(String(meal.id))}
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
