@@ -86,8 +86,8 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
-app.UseCors("DefinedOrigins");
 app.UseRouting();
+app.UseCors("DefinedOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<RequestLoggingMiddleware>();
