@@ -41,10 +41,13 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, './src') },
   },
   server: {
-    host: true, // reachable from a phone on the LAN
+    host: true,
     proxy: {
       '/api': { target: 'http://localhost:5177', changeOrigin: true, secure: false },
     },
+  },
+  preview: {
+    allowedHosts: ['vitatrack-production.up.railway.app'],
   },
   build: {
     chunkSizeWarningLimit: 900,
