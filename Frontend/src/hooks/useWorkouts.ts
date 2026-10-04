@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import api, { errorMessage } from '@/lib/api';
 import type {
   CreateExerciseRequest, CreateWorkoutRequest, Exercise, ExerciseDetail, HeatmapDay, LastPerformance,
-  Paged, RoutineRequest, WorkoutDto, WorkoutSummary,
+  Paged, RoutineRequest, WorkoutDto, WorkoutSummary, WorkoutExerciseRequest,
 } from '@/types/api';
 
 export const keys = {
